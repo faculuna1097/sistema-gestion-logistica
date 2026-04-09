@@ -3,6 +3,8 @@ import dotenv from 'dotenv'
 import { pool } from './config/db'
 import clientesRouter from './routes/clientes.routes'
 import fleterosRouter from './routes/fleteros.routes'
+import viajesRouter from './routes/viajes.routes'
+import facturasRouter from './routes/facturas.routes'
 
 dotenv.config()
 
@@ -13,6 +15,8 @@ const PORT = process.env.PORT || 3000
 
 app.use('/clientes', clientesRouter)
 app.use('/fleteros', fleterosRouter)
+app.use('/viajes', viajesRouter)
+app.use('/facturas', facturasRouter)
 
 
 app.get('/health', async (req, res) => {

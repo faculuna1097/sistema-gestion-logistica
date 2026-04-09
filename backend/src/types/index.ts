@@ -30,6 +30,7 @@ export interface Viaje {
   valorCliente: number
   fleteroId: number
   costoFletero: number
+  createdAt: string
 }
 
 export interface CreateViajeDTO {
@@ -57,10 +58,12 @@ export interface Factura {
 
 export interface CreateFacturaDTO {
   tipo: 'cobranza' | 'pago_fletero' | 'pago_servicio'
-  clienteId?: number
-  fleteroId?: number
+  clienteId?: number | null
+  fleteroId?: number | null
   viajeId?: number
   monto: number
   descripcion?: string
+  numero: string | null
+  fechaEmision: string | null
   vencimiento?: string
 }
