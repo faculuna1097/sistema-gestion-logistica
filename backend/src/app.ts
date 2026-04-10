@@ -5,11 +5,14 @@ import clientesRouter from './routes/clientes.routes'
 import fleterosRouter from './routes/fleteros.routes'
 import viajesRouter from './routes/viajes.routes'
 import facturasRouter from './routes/facturas.routes'
+import cors from 'cors'
+
 
 dotenv.config()
 
 const app = express()
 app.use(express.json())
+app.use(cors({ origin: 'http://localhost:5173' }))
 
 const PORT = process.env.PORT || 3000
 

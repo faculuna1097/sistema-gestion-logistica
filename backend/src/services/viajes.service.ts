@@ -17,45 +17,39 @@ export const viajesService = {
     return viajesRepository.getById(id);
   },
 
-async crear(datos: CreateViajeDTO): Promise<Viaje> {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+  async crear(datos: CreateViajeDTO): Promise<Viaje> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const viajeResult = await client.query<Viaje>(
-      `INSERT INTO viajes (fecha, cliente_id, valor_cliente, fletero_id, costo_fletero)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, fecha, cliente_id, valor_cliente, fletero_id, costo_fletero`,
-      [datos.fecha, datos.clienteId, datos.valorCliente, datos.fleteroId, datos.costoFletero]
-    );
-    const viaje = viajeResult.rows[0];
+      // Crea el viaje dentro de la transacción — mapRow se aplica en el repository
+      const viaje = await viajesRepository.crear(datos, client);
 
-    const fecha = new Date(viaje.fecha).toISOString().slice(0, 10);
-    const vencimiento = calcularVencimiento(fecha);
+      const vencimiento = calcularVencimiento(viaje.fecha);
 
-    await client.query(
-      `INSERT INTO facturas (tipo, cliente_id, fletero_id, viaje_id, monto, vencimiento, estado)
-       VALUES ($1, $2, $3, $4, $5, $6, 'sin_facturar')`,
-      ['cobranza', datos.clienteId, null, viaje.id, datos.valorCliente, vencimiento]
-    );
+      await client.query(
+        `INSERT INTO facturas (tipo, cliente_id, fletero_id, viaje_id, monto, vencimiento, estado)
+        VALUES ($1, $2, $3, $4, $5, $6, 'sin_facturar')`,
+        ['cobranza', datos.clienteId, null, viaje.id, datos.valorCliente, vencimiento]
+      );
 
-    await client.query(
-      `INSERT INTO facturas (tipo, cliente_id, fletero_id, viaje_id, monto, vencimiento, estado)
-       VALUES ($1, $2, $3, $4, $5, $6, 'sin_facturar')`,
-      ['pago_fletero', null, datos.fleteroId, viaje.id, datos.costoFletero, vencimiento]
-    );
+      await client.query(
+        `INSERT INTO facturas (tipo, cliente_id, fletero_id, viaje_id, monto, vencimiento, estado)
+        VALUES ($1, $2, $3, $4, $5, $6, 'sin_facturar')`,
+        ['pago_fletero', null, datos.fleteroId, viaje.id, datos.costoFletero, vencimiento]
+      );
 
-    await client.query('COMMIT');
-    console.log(`[viajes] crear — completado | id: ${viaje.id}`);
-    return viaje;
+      await client.query('COMMIT');
+      console.log(`[viajes] crear — completado | id: ${viaje.id}`);
+      return viaje;
 
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-},
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
 
   async actualizar(id: number, datos: Partial<CreateViajeDTO>): Promise<Viaje | null> {
     return viajesRepository.actualizar(id, datos);
