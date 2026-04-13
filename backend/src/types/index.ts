@@ -31,6 +31,8 @@ export interface Viaje {
   fleteroId: number
   costoFletero: number
   createdAt: string
+  numeroFacturaCobranza: string | null
+  numeroFacturaPagoFletero: string | null
 }
 
 export interface CreateViajeDTO {

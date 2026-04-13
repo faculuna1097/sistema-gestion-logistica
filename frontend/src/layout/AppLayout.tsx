@@ -51,13 +51,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               }}>
                 Logística Tute
               </div>
-              <div style={{
-                color: theme.colors.sidebarText,
-                fontSize: theme.font.size.xs,
-                opacity: 0.7,
-              }}>
-                Sistema de gestión
-              </div>
             </div>
           </div>
         </div>

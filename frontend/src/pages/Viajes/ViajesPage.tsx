@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useViajes } from '../../hooks/useViajes'
 import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
@@ -46,9 +46,19 @@ export function ViajesPage() {
   const [form, setForm] = useState<FormState>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [mesFiltro, setMesFiltro] = useState(() => new Date().toISOString().slice(0, 7))
 
   const clienteMap = Object.fromEntries(clientes.map(c => [c.id, c.nombre]))
   const fleteroMap = Object.fromEntries(fleteros.map(f => [f.id, f.nombre]))
+
+  const mesesDisponibles = useMemo(() => {
+    const meses = [...new Set(viajes.map(v => v.fecha.slice(0, 7)))].sort().reverse()
+    return meses
+  }, [viajes])
+
+  const viajesFiltrados = mesFiltro === 'todos'
+    ? viajes
+    : viajes.filter(v => v.fecha.startsWith(mesFiltro))
 
   const openCrear = () => {
     setForm(emptyForm)
@@ -98,12 +108,26 @@ export function ViajesPage() {
 
   return (
     <div style={{ padding: '32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <h1 style={{ margin: 0, fontFamily: theme.font.family, fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.textPrimary }}>
-          Viajes
-        </h1>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      <h1 style={{ margin: 0, fontFamily: theme.font.family, fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.textPrimary }}>
+        Viajes
+      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <select
+          value={mesFiltro}
+          onChange={e => setMesFiltro(e.target.value)}
+          style={{ ...inputStyle, cursor: 'pointer', minWidth: '160px' }}
+        >
+          <option value="todos">Todos los meses</option>
+          {mesesDisponibles.map(mes => (
+            <option key={mes} value={mes}>
+              {new Date(mes + '-02').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+            </option>
+          ))}
+        </select>
         <Button onClick={openCrear}>+ Ingresar viaje</Button>
       </div>
+    </div>
 
       {error && (
         <div style={{ background: theme.colors.dangerLight, color: theme.colors.danger, padding: '12px 16px', borderRadius: theme.radius.md, marginBottom: '16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>
@@ -118,8 +142,10 @@ export function ViajesPage() {
               {[
                 { label: 'Fecha',    align: 'left'  },
                 { label: 'Cliente',  align: 'left'  },
+                { label: 'N° Cob.',  align: 'left'  },
                 { label: 'Valor',    align: 'right' },
                 { label: 'Fletero',  align: 'left'  },
+                { label: 'N° Flet.', align: 'left'  },
                 { label: 'Costo',    align: 'right' },
                 { label: 'Ganancia', align: 'right' },
                 { label: '',         align: 'right' },
@@ -132,15 +158,15 @@ export function ViajesPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>Cargando...</td></tr>
+              <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>Cargando...</td></tr>
             ) : viajes.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay viajes cargados</td></tr>
-            ) : viajes.map((v, i) => {
+              <tr><td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay viajes cargados</td></tr>
+            ) : viajesFiltrados.map((v, i) => {
               const ganancia = v.valorCliente - v.costoFletero
               return (
                 <tr
                   key={v.id}
-                  style={{ borderBottom: i < viajes.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none', transition: 'background 0.1s' }}
+                  style={{ borderBottom: i < viajesFiltrados.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none', transition: 'background 0.1s' }}
                   onMouseEnter={e => (e.currentTarget.style.background = theme.colors.surfaceHover)}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
@@ -150,11 +176,17 @@ export function ViajesPage() {
                   <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.base, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
                     {v.clienteNombre || clienteMap[v.clienteId] || `Cliente ${v.clienteId}`}
                   </td>
+                  <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
+                    {v.numeroFacturaCobranza ?? '—'}
+                  </td>
                   <td style={{ padding: '14px 20px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(v.valorCliente)}
                   </td>
                   <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.base, color: theme.colors.textSecondary }}>
                     {v.fleteroNombre || fleteroMap[v.fleteroId] || `Fletero ${v.fleteroId}`}
+                  </td>
+                  <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
+                    {v.numeroFacturaPagoFletero ?? '—'}
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(v.costoFletero)}

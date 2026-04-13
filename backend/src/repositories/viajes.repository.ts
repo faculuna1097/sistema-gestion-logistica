@@ -2,33 +2,56 @@ import { pool } from '../config/db';
 import { PoolClient } from 'pg';
 import { Viaje, CreateViajeDTO } from '../types';
 
+
 const SELECT = `
   id, fecha, cliente_id, valor_cliente, fletero_id, costo_fletero, created_at
 `;
 
+const SELECT_CON_FACTURAS = `
+  v.id, v.fecha, v.cliente_id, v.valor_cliente, v.fletero_id, v.costo_fletero, v.created_at,
+  fc.numero AS numero_factura_cobranza,
+  fp.numero AS numero_factura_pago_fletero
+`;
+
 function mapRow(row: Record<string, unknown>): Viaje {
   return {
-    id:           Number(row.id),
-    fecha:        new Date(row.fecha as string).toISOString().slice(0, 10),
-    clienteId:    Number(row.cliente_id),
-    valorCliente: Number(row.valor_cliente),
-    fleteroId:    Number(row.fletero_id),
-    costoFletero: Number(row.costo_fletero),
-    createdAt:    row.created_at as string,
+    id:                       Number(row.id),
+    fecha:                    new Date(row.fecha as string).toISOString().slice(0, 10),
+    clienteId:                Number(row.cliente_id),
+    valorCliente:             Number(row.valor_cliente),
+    fleteroId:                Number(row.fletero_id),
+    costoFletero:             Number(row.costo_fletero),
+    createdAt:                row.created_at as string,
+    numeroFacturaCobranza:    (row.numero_factura_cobranza as string) ?? null,
+    numeroFacturaPagoFletero: (row.numero_factura_pago_fletero as string) ?? null,
   };
 }
 
 export const viajesRepository = {
+// reemplazar getAll y getById
+
   async getAll(): Promise<Viaje[]> {
     console.log('[viajes] getAll — request recibido');
-    const result = await pool.query(`SELECT ${SELECT} FROM viajes ORDER BY fecha DESC`);
+    const result = await pool.query(`
+      SELECT ${SELECT_CON_FACTURAS}
+      FROM viajes v
+      LEFT JOIN facturas fc ON fc.viaje_id = v.id AND fc.tipo = 'cobranza'
+      LEFT JOIN facturas fp ON fp.viaje_id = v.id AND fp.tipo = 'pago_fletero'
+      ORDER BY v.fecha DESC
+    `);
     console.log(`[viajes] getAll — completado | registros: ${result.rows.length}`);
     return result.rows.map(mapRow);
   },
 
   async getById(id: number): Promise<Viaje | null> {
     console.log(`[viajes] getById — request recibido | id: ${id}`);
-    const result = await pool.query(`SELECT ${SELECT} FROM viajes WHERE id = $1`, [id]);
+    const result = await pool.query(`
+      SELECT ${SELECT_CON_FACTURAS}
+      FROM viajes v
+      LEFT JOIN facturas fc ON fc.viaje_id = v.id AND fc.tipo = 'cobranza'
+      LEFT JOIN facturas fp ON fp.viaje_id = v.id AND fp.tipo = 'pago_fletero'
+      WHERE v.id = $1
+    `, [id]);
     console.log(`[viajes] getById — completado | encontrado: ${result.rows.length > 0}`);
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   },
