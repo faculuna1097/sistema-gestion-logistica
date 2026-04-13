@@ -133,6 +133,24 @@ export async function eliminar(id: number): Promise<boolean> {
   return result.rows.length > 0;
 }
 
+export async function revertir(id: number): Promise<Factura | null> {
+  console.log(`[facturas] revertir — request recibido | id: ${id}`);
+  const result = await pool.query(
+    `UPDATE facturas SET
+       estado        = 'sin_facturar',
+       numero        = NULL,
+       fecha_emision = NULL,
+       vencimiento   = NULL
+     WHERE id = $1 AND estado = 'facturada'
+     RETURNING ${SELECT}`,
+    [id]
+  );
+  if (result.rows.length === 0) return null;
+  console.log(`[facturas] revertir — completado | id: ${id}`);
+  return mapRow(result.rows[0]);
+}
+
+
 /**
  * Elimina todas las facturas asociadas a un viaje.
  * @param viajeId - El id del viaje.
@@ -143,4 +161,44 @@ export async function eliminarPorViajeId(viajeId: number, client: PoolClient): P
   console.log(`[facturas] eliminarPorViajeId — request recibido | viajeId: ${viajeId}`);
   await client.query(`DELETE FROM facturas WHERE viaje_id = $1`, [viajeId]);
   console.log(`[facturas] eliminarPorViajeId — completado | viajeId: ${viajeId}`);
+}
+
+
+export async function existeNumero(numero: string): Promise<boolean> {
+  console.log(`[facturas] existeNumero — request recibido | numero: ${numero}`);
+  const result = await pool.query(
+    `SELECT 1 FROM facturas WHERE numero = $1 LIMIT 1`,
+    [numero]
+  );
+  console.log(`[facturas] existeNumero — completado | existe: ${result.rows.length > 0}`);
+  return result.rows.length > 0;
+}
+
+export async function facturarLote(
+  ids: number[],
+  datos: { numero: string; fechaEmision: string; vencimiento: string }
+): Promise<Factura[]> {
+  console.log(`[facturas] facturarLote — request recibido | ids: ${ids.length}`);
+  const client: PoolClient = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE facturas SET
+         estado        = 'facturada',
+         numero        = $1,
+         fecha_emision = $2,
+         vencimiento   = $3
+       WHERE estado = 'sin_facturar' AND id = ANY($4)
+       RETURNING ${SELECT}`,
+      [datos.numero, datos.fechaEmision, datos.vencimiento, ids]
+    );
+    await client.query('COMMIT');
+    console.log(`[facturas] facturarLote — completado | actualizadas: ${result.rows.length}`);
+    return result.rows.map(mapRow);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

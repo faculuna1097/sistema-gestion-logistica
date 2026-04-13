@@ -83,3 +83,28 @@ export async function eliminar(req: Request, res: Response) {
     res.status(status).json({ error: err.message });
   }
 }
+
+export async function revertir(req: Request, res: Response) {
+  try {
+    const factura = await facturasService.revertir(Number(req.params.id));
+    res.json(factura);
+  } catch (err: any) {
+    console.error('[facturas] Error en revertir:', err.message);
+    const status = err.message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: err.message });
+  }
+}
+
+export async function facturarLote(req: Request, res: Response) {
+  try {
+    const { ids, numero, fechaEmision, vencimiento } = req.body;
+    console.log('[facturas] facturarLote — request recibido | ids:', ids.length);
+    const facturas = await facturasService.facturarLote(ids, { numero, fechaEmision, vencimiento });
+    console.log('[facturas] facturarLote — completado | actualizadas:', facturas.length);
+    res.json(facturas);
+  } catch (err: any) {
+    console.error('[facturas] Error en facturarLote:', err.message);
+    const status = err.message.includes('ya existe') || err.message.includes('Solo se actualizaron') ? 400 : 500;
+    res.status(status).json({ error: err.message });
+  }
+}

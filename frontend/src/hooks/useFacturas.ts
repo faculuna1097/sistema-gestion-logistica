@@ -19,8 +19,8 @@ export function useFacturas(filtros?: FacturasFiltros) {
     setError(null)
     try {
       const params = new URLSearchParams()
-      if (filtros?.tipo) params.append('tipo', filtros.tipo)
-      if (filtros?.estado) params.append('estado', filtros.estado)
+      if (filtros?.tipo)       params.append('tipo',       filtros.tipo)
+      if (filtros?.estado)     params.append('estado',     filtros.estado)
       if (filtros?.cliente_id) params.append('cliente_id', String(filtros.cliente_id))
       if (filtros?.fletero_id) params.append('fletero_id', String(filtros.fletero_id))
       const query = params.toString() ? `?${params.toString()}` : ''
@@ -47,5 +47,22 @@ export function useFacturas(filtros?: FacturasFiltros) {
     return actualizada
   }
 
-  return { facturas, loading, error, facturar, pagar, refetch: fetchFacturas }
+  const revertir = async (id: number) => {
+    const actualizada = await api.patch<Factura>(`/facturas/${id}/revertir`)
+    setFacturas(prev => prev.map(f => f.id === id ? actualizada : f))
+    return actualizada
+  }
+
+  const facturarLote = async (ids: number[], dto: FacturarDTO) => {
+  const actualizadas = await api.patch<Factura[]>(`/facturas/facturar-lote`, { ids, ...dto })
+  setFacturas(prev => prev.map(f => {
+    const actualizada = actualizadas.find(a => a.id === f.id)
+    return actualizada ?? f
+  }))
+  return actualizadas
 }
+
+
+return { facturas, loading, error, facturar, facturarLote, pagar, revertir, refetch: fetchFacturas }
+}
+
