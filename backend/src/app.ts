@@ -5,6 +5,7 @@ import clientesRouter from './routes/clientes.routes'
 import fleterosRouter from './routes/fleteros.routes'
 import viajesRouter from './routes/viajes.routes'
 import facturasRouter from './routes/facturas.routes'
+import vencimientosRouter from './routes/vencimientos.routes';
 import cors from 'cors'
 
 
@@ -20,6 +21,7 @@ app.use('/clientes', clientesRouter)
 app.use('/fleteros', fleterosRouter)
 app.use('/viajes', viajesRouter)
 app.use('/facturas', facturasRouter)
+app.use('/vencimientos', vencimientosRouter);
 
 
 app.get('/health', async (req, res) => {

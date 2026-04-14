@@ -5,6 +5,7 @@ import { theme } from '../theme'
 const navItems = [
   { path: '/viajes',   label: 'Viajes',   icon: '🚛' },
   { path: '/facturas', label: 'Facturas', icon: '🧾' },
+  { path: '/vencimientos', label: 'Vencimientos', icon: '📅' },
   { path: '/clientes', label: 'Clientes', icon: '🏢' },
   { path: '/fleteros', label: 'Fleteros', icon: '👤' },
 ]

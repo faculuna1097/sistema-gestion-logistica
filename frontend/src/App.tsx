@@ -4,6 +4,8 @@ import { ViajesPage } from './pages/Viajes/ViajesPage.tsx'
 import { ClientesPage } from './pages/Clientes/ClientesPage.tsx'
 import { FleterosPage } from './pages/Fleteros/FleterosPage.tsx'
 import { FacturasPage } from './pages/Facturas/FacturasPage.tsx'
+import VencimientosPage from './pages/Vencimientos/VencimientosPage.tsx'
+
 
 export default function App() {
   return (
@@ -15,6 +17,7 @@ export default function App() {
           <Route path="/facturas" element={<FacturasPage />} />
           <Route path="/clientes" element={<ClientesPage />} />
           <Route path="/fleteros" element={<FleterosPage />} />
+          <Route path="/vencimientos" element={<VencimientosPage />} />
         </Routes>
       </AppLayout>
     </BrowserRouter>
