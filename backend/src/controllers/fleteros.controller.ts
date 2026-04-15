@@ -42,6 +42,10 @@ export async function create(req: Request, res: Response): Promise<void> {
     const fletero = await fleterosService.create({ nombre });
     res.status(201).json(fletero);
   } catch (err: any) {
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'Ya existe un fletero con ese nombre' });
+      return;
+    }
     console.error('[fleteros] Error en create:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
@@ -61,6 +65,10 @@ export async function update(req: Request, res: Response): Promise<void> {
 
     res.json(fletero);
   } catch (err: any) {
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'Ya existe un fletero con ese nombre' });
+      return;
+    }
     console.error('[fleteros] Error en update:', err.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
