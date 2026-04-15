@@ -32,18 +32,14 @@ export async function getById(req: Request, res: Response): Promise<void> {
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {
-    const { nombre, periodoVencimiento } = req.body;
+    const { nombre } = req.body;
 
     if (!nombre) {
       res.status(400).json({ error: 'El campo nombre es requerido' });
       return;
     }
 
-    const fletero = await fleterosService.create({
-      nombre,
-      periodoVencimiento: periodoVencimiento ?? 30,
-    });
-
+    const fletero = await fleterosService.create({ nombre });
     res.status(201).json(fletero);
   } catch (err: any) {
     console.error('[fleteros] Error en create:', err.message);
@@ -54,9 +50,9 @@ export async function create(req: Request, res: Response): Promise<void> {
 export async function update(req: Request, res: Response): Promise<void> {
   try {
     const id = Number(req.params.id);
-    const { nombre, periodoVencimiento } = req.body;
+    const { nombre } = req.body;
 
-    const fletero = await fleterosService.update(id, { nombre, periodoVencimiento });
+    const fletero = await fleterosService.update(id, { nombre });
 
     if (!fletero) {
       res.status(404).json({ error: 'Fletero no encontrado' });

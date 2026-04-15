@@ -1,25 +1,23 @@
+// src/types/index.ts
+
 // CLIENTES
 export interface Cliente {
   id: number
   nombre: string
-  periodoVencimiento: number
 }
 
 export interface CreateClienteDTO {
   nombre: string
-  periodoVencimiento?: number
 }
 
 // FLETEROS
 export interface Fletero {
   id: number
   nombre: string
-  periodoVencimiento: number
 }
 
 export interface CreateFleteroDTO {
   nombre: string
-  periodoVencimiento?: number
 }
 
 // VIAJES

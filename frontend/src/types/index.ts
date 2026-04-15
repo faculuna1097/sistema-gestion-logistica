@@ -1,23 +1,21 @@
+// src/types/index.ts Frontend TypeScript types
+
 export interface Cliente {
   id: number
   nombre: string
-  periodoVencimiento: number
 }
 
 export interface CreateClienteDTO {
   nombre: string
-  periodoVencimiento?: number
 }
 
 export interface Fletero {
   id: number
   nombre: string
-  periodoVencimiento: number
 }
 
 export interface CreateFleteroDTO {
   nombre: string
-  periodoVencimiento?: number
 }
 
 export interface Viaje {

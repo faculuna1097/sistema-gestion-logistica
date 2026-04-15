@@ -1,3 +1,5 @@
+// src/pages/Fleteros/FleterosPage.tsx - Página de gestión de fleteros
+
 import { useState } from 'react'
 import { useFleteros } from '../../hooks/useFleteros'
 import { Button } from '../../components/Button'
@@ -6,8 +8,8 @@ import { FormField, inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
 import type { Fletero } from '../../types'
 
-interface FormState { nombre: string; periodoVencimiento: string }
-const emptyForm: FormState = { nombre: '', periodoVencimiento: '30' }
+interface FormState { nombre: string }
+const emptyForm: FormState = { nombre: '' }
 
 export function FleterosPage() {
   const { fleteros, loading, error, crearFletero, editarFletero, eliminarFletero } = useFleteros()
@@ -27,7 +29,7 @@ export function FleterosPage() {
 
   const openEditar = (f: Fletero) => {
     setEditTarget(f)
-    setForm({ nombre: f.nombre, periodoVencimiento: String(f.periodoVencimiento) })
+    setForm({ nombre: f.nombre })
     setFormError(null)
     setModalOpen(true)
   }
@@ -37,7 +39,7 @@ export function FleterosPage() {
     setSaving(true)
     setFormError(null)
     try {
-      const dto = { nombre: form.nombre.trim(), periodoVencimiento: Number(form.periodoVencimiento) || 30 }
+      const dto = { nombre: form.nombre.trim() }
       if (editTarget) {
         await editarFletero(editTarget.id, dto)
       } else {
@@ -81,7 +83,7 @@ export function FleterosPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
-              {['Nombre', 'Período de vencimiento', ''].map(col => (
+              {['Nombre', ''].map(col => (
                 <th key={col} style={{ padding: '12px 20px', textAlign: 'left', fontFamily: theme.font.family, fontSize: theme.font.size.xs, fontWeight: theme.font.weight.semibold, color: theme.colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', background: theme.colors.surfaceHover }}>
                   {col}
                 </th>
@@ -90,9 +92,9 @@ export function FleterosPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>Cargando...</td></tr>
+              <tr><td colSpan={2} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>Cargando...</td></tr>
             ) : fleteros.length === 0 ? (
-              <tr><td colSpan={3} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay fleteros cargados</td></tr>
+              <tr><td colSpan={2} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay fleteros cargados</td></tr>
             ) : fleteros.map((f, i) => (
               <tr
                 key={f.id}
@@ -103,9 +105,7 @@ export function FleterosPage() {
                 <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.base, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
                   {f.nombre}
                 </td>
-                <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary }}>
-                  {f.periodoVencimiento} días
-                </td>
+
                 <td style={{ padding: '14px 20px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <Button size="sm" variant="secondary" onClick={() => openEditar(f)}>Editar</Button>
@@ -122,9 +122,6 @@ export function FleterosPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <FormField label="Nombre" required error={formError || undefined}>
             <input style={inputStyle} value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre del fletero" autoFocus />
-          </FormField>
-          <FormField label="Período de vencimiento (días)">
-            <input style={inputStyle} type="number" value={form.periodoVencimiento} onChange={e => setForm(p => ({ ...p, periodoVencimiento: e.target.value }))} min={1} />
           </FormField>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>

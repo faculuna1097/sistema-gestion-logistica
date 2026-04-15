@@ -1,7 +1,8 @@
+// repositories/clientes.repository.ts
 import { pool } from '../config/db';
 import { Cliente, CreateClienteDTO } from '../types';
 
-const COLUMNS = `id, nombre, periodo_vencimiento AS "periodoVencimiento"`;
+const COLUMNS = `id, nombre`;
 
 export async function getAll(): Promise<Cliente[]> {
   console.log('[clientes] getAll — request recibido');
@@ -25,10 +26,10 @@ export async function getById(id: number): Promise<Cliente | null> {
 export async function create(data: CreateClienteDTO): Promise<Cliente> {
   console.log(`[clientes] create — request recibido | nombre: ${data.nombre}`);
   const result = await pool.query<Cliente>(
-    `INSERT INTO clientes (nombre, periodo_vencimiento)
-     VALUES ($1, $2)
+    `INSERT INTO clientes (nombre)
+     VALUES ($1)
      RETURNING ${COLUMNS}`,
-    [data.nombre, data.periodoVencimiento]
+    [data.nombre]
   );
   console.log(`[clientes] create — completado | id: ${result.rows[0].id}`);
   return result.rows[0];
@@ -38,11 +39,10 @@ export async function update(id: number, data: Partial<CreateClienteDTO>): Promi
   console.log(`[clientes] update — request recibido | id: ${id}`);
   const result = await pool.query<Cliente>(
     `UPDATE clientes
-     SET nombre = COALESCE($1, nombre),
-         periodo_vencimiento = COALESCE($2, periodo_vencimiento)
-     WHERE id = $3
+     SET nombre = COALESCE($1, nombre)
+     WHERE id = $2
      RETURNING ${COLUMNS}`,
-    [data.nombre ?? null, data.periodoVencimiento ?? null, id]
+    [data.nombre ?? null, id]
   );
   const cliente = result.rows[0] ?? null;
   console.log(`[clientes] update — completado | encontrado: ${cliente !== null}`);
