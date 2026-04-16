@@ -1,228 +1,247 @@
-// src/pages/Vencimientos/VencimientosPage.tsx
+// frontend/src/pages/Vencimientos/VencimientosPage.tsx 
 
-import { useVencimientos } from '../../hooks/useVencimientos';
-import type { VencimientoRow, SemanaGroup } from '../../hooks/useVencimientos';
-
+import { useVencimientos } from '../../hooks/useVencimientos'
+import type { VencimientoRow, SemanaGroup } from '../../hooks/useVencimientos'
+import { theme } from '../../theme'
 
 const MESES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
+  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+]
 
 function formatMes(mes: string): string {
-  const [anio, mesNum] = mes.split('-').map(Number);
-  return `${MESES[mesNum - 1]} ${anio}`;
+  const [anio, mesNum] = mes.split('-').map(Number)
+  return `${MESES[mesNum - 1]} ${anio}`
 }
 
 function formatMonto(monto: number): string {
-  return monto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
-}
-
-const COLS = ['Fecha viaje', 'Titular', 'N° Factura', 'Vencimiento', 'Monto'];
-
-// Fila individual de la tabla
-function FilaVencimiento({ fila }: { fila: VencimientoRow }) {
-  return (
-    <tr style={{ borderBottom: '1px solid #e8e8e4' }}>
-      <td style={tdStyle}>{fila.fechaViaje   ?? '—'}</td>
-      <td style={tdStyle}>{fila.titular}</td>
-      <td style={tdStyle}>{fila.numero       ?? '—'}</td>
-      <td style={tdStyle}>
-        <span>{fila.vencimiento}</span>
-        {(() => {
-            const dias = diasHastaVencimiento(fila.vencimiento);
-            const color = dias <= 5 ? '#c0392b' : '#888';
-            const label = dias < 0 ? `hace ${Math.abs(dias)}d` : `en ${dias}d`;
-            return (
-            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, color }}>
-                {label}
-            </span>
-            );
-        })()}
-        </td>
-      <td style={{ ...tdStyle, textAlign: 'right' }}>{formatMonto(fila.monto)}</td>
-    </tr>
-  );
+  return monto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 }
 
 function diasHastaVencimiento(vencimiento: string): number {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const vence = new Date(vencimiento + 'T12:00:00');
-  return Math.round((vence.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  const hoy = new Date()
+  hoy.setHours(0,0,0,0)
+  const vence = new Date(vencimiento + 'T12:00:00')
+  return Math.round((vence.getTime() - hoy.getTime()) / (1000*60*60*24))
 }
 
-// Fila de subtotal de semana
+const thStyle: React.CSSProperties = {
+  padding: '12px 20px',
+  textAlign: 'left',
+  fontFamily: theme.font.family,
+  fontSize: theme.font.size.xs,
+  fontWeight: theme.font.weight.semibold,
+  color: theme.colors.textMuted,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  background: theme.colors.surfaceHover,
+}
+
+const tdStyle: React.CSSProperties = {
+  padding: '14px 20px',
+  fontFamily: theme.font.family,
+  fontSize: theme.font.size.sm,
+  color: theme.colors.textSecondary,
+}
+
+const tableWrapper: React.CSSProperties = {
+  background: theme.colors.surface,
+  borderRadius: theme.radius.lg,
+  border: `1px solid ${theme.colors.border}`,
+  overflow: 'hidden',
+  boxShadow: theme.shadow.sm,
+}
+
+function FilaVencimiento({ fila }: { fila: VencimientoRow }) {
+  const dias = diasHastaVencimiento(fila.vencimiento)
+
+  return (
+    <tr
+      style={{ transition: 'background 0.1s' }}
+      onMouseEnter={e => (e.currentTarget.style.background = theme.colors.surfaceHover)}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      <td style={{ ...tdStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
+        {fila.titular}
+      </td>
+      <td style={tdStyle}>{fila.numero ?? '—'}</td>
+      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+        <span>{fila.vencimiento}</span>
+        <span style={{ marginLeft: 8, fontSize: theme.font.size.xs, fontWeight: theme.font.weight.semibold, color: dias <= 5 ? theme.colors.danger : theme.colors.textMuted }}>
+          {dias < 0 ? `hace ${Math.abs(dias)}d` : `en ${dias}d`}
+        </span>
+      </td>
+      <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
+        {formatMonto(fila.monto)}
+      </td>
+    </tr>
+  )
+}
+
 function FilaSubtotal({ label, subtotal }: { label: string; subtotal: number }) {
   return (
-    <tr style={{ backgroundColor: '#f0f0ec' }}>
-      <td colSpan={4} style={{ ...tdStyle, fontWeight: 600, color: '#555' }}>{label} — Subtotal</td>
-      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{formatMonto(subtotal)}</td>
+    <tr style={{ background: '#fef9ec' }}>
+      <td colSpan={3} style={{ ...tdStyle, fontWeight: theme.font.weight.medium, color: '#92660a' }}>
+        {label} — Subtotal
+      </td>
+      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: theme.font.weight.medium, fontVariantNumeric: 'tabular-nums', color: '#92660a' }}>
+        {formatMonto(subtotal)}
+      </td>
     </tr>
-  );
+  )
 }
 
-// Sección de vencidas (aparece arriba de cada tabla si hay filas)
 function SeccionVencidas({ filas }: { filas: VencimientoRow[] }) {
-  if (filas.length === 0) return null;
+  if (filas.length === 0) return null
+  const total = filas.reduce((acc, f) => acc + f.monto, 0)
+
   return (
     <>
       <tr>
-        <td colSpan={5} style={{ padding: '6px 12px', backgroundColor: '#fff0f0', color: '#c0392b', fontWeight: 700, fontSize: 12, letterSpacing: '0.05em' }}>
-          ⚠ VENCIDAS
+        <td colSpan={4} style={{ ...tdStyle, color: theme.colors.danger, fontWeight: theme.font.weight.semibold }}>
+          Vencidas
         </td>
       </tr>
       {filas.map(f => (
-        <tr key={f.id} style={{ backgroundColor: '#fff5f5', borderBottom: '1px solid #f5c0c0' }}>
-          <td style={tdStyle}>{f.fechaViaje   ?? '—'}</td>
-          <td style={tdStyle}>{f.titular}</td>
-          <td style={tdStyle}>{f.numero       ?? '—'}</td>
-          <td style={{ ...tdStyle, color: '#c0392b', fontWeight: 600 }}>{f.vencimiento}</td>
-          <td style={{ ...tdStyle, textAlign: 'right', color: '#c0392b', fontWeight: 600 }}>{formatMonto(f.monto)}</td>
+        <tr key={f.id} style={{ background: theme.colors.dangerLight }}>
+          <td style={{ ...tdStyle, fontWeight: theme.font.weight.medium }}>{f.titular}</td>
+          <td style={tdStyle}>{f.numero ?? '—'}</td>
+          <td style={{ ...tdStyle, color: theme.colors.danger, fontWeight: theme.font.weight.medium }}>
+            {f.vencimiento}
+          </td>
+          <td style={{ ...tdStyle, textAlign: 'right', color: theme.colors.danger, fontWeight: theme.font.weight.medium }}>
+            {formatMonto(f.monto)}
+          </td>
         </tr>
       ))}
-      
-      <tr style={{ backgroundColor: '#fde8e8' }}>
-        <td colSpan={4} style={{ ...tdStyle, fontWeight: 600, color: '#c0392b' }}>Subtotal vencidas</td>
-        <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#c0392b' }}>
-          {formatMonto(filas.reduce((acc, f) => acc + f.monto, 0))}
+      <tr style={{ background: theme.colors.dangerLight }}>
+        <td colSpan={3} style={{ ...tdStyle, fontWeight: theme.font.weight.semibold, color: theme.colors.danger }}>
+          Subtotal vencidas
+        </td>
+        <td style={{ ...tdStyle, textAlign: 'right', fontWeight: theme.font.weight.semibold, color: theme.colors.danger }}>
+          {formatMonto(total)}
         </td>
       </tr>
     </>
-  );
+  )
 }
 
-// Tabla completa (cobranza o pagos)
-function TablaVencimientos({
-  titulo,
-  vencidas,
-  semanas,
-  total,
-}: {
-  titulo: string;
-  vencidas: VencimientoRow[];
-  semanas: SemanaGroup[];
-  total: number;
+function TablaVencimientos({ titulo, vencidas, semanas, total }: {
+  titulo: string
+  vencidas: VencimientoRow[]
+  semanas: SemanaGroup[]
+  total: number
 }) {
-  const hayDatos = vencidas.length > 0 || semanas.length > 0;
+  const hayDatos = vencidas.length > 0 || semanas.length > 0
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a7a4a', marginBottom: 12 }}>
+      <h2 style={{
+        margin: '0 0 12px 0',
+        fontFamily: theme.font.family,
+        fontSize: theme.font.size.lg,
+        fontWeight: theme.font.weight.semibold,
+        color: theme.colors.textPrimary
+      }}>
         {titulo}
       </h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#1a7a4a' }}>
-            {COLS.map(col => (
-              <th key={col} style={thStyle}>{col}</th>
+
+      <div style={tableWrapper}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
+              {['Titular','N° Factura','Vencimiento','Monto'].map(col => (
+                <th key={col} style={col === 'Monto' ? { ...thStyle, textAlign: 'right' } : thStyle}>
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            <SeccionVencidas filas={vencidas} />
+
+            {!hayDatos && (
+              <tr>
+                <td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: theme.colors.textMuted }}>
+                  Sin vencimientos
+                </td>
+              </tr>
+            )}
+
+            {semanas.map(semana => (
+              <>
+                {semana.filas.map(f => <FilaVencimiento key={f.id} fila={f} />)}
+                <FilaSubtotal key={`sub-${semana.label}`} label={semana.label} subtotal={semana.subtotal} />
+              </>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          <SeccionVencidas filas={vencidas} />
 
-          {!hayDatos && (
-            <tr>
-              <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#aaa', padding: '24px 0' }}>
-                Sin vencimientos
-              </td>
-            </tr>
-          )}
-
-          {semanas.map(semana => (
-            <>
-              {semana.filas.map(f => <FilaVencimiento key={f.id} fila={f} />)}
-              <FilaSubtotal key={`sub-${semana.label}`} label={semana.label} subtotal={semana.subtotal} />
-            </>
-          ))}
-
-          {hayDatos && (
-            <tr style={{ backgroundColor: '#0d2b1a' }}>
-              <td colSpan={4} style={{ ...tdStyle, fontWeight: 700, color: '#fff' }}>Total del mes</td>
-              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: '#fff' }}>{formatMonto(total)}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            {hayDatos && (
+              <tr style={{ background: '#f0b429' }}>
+                <td colSpan={3} style={{ ...tdStyle, fontWeight: theme.font.weight.semibold, color: '#1a1f1c' }}>
+                  Total del mes
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: theme.font.weight.semibold, color: '#1a1f1c' }}>
+                  {formatMonto(total)}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
-  );
+  )
 }
 
-// Page principal
 export default function VencimientosPage() {
   const {
-    mes,
-    navegarMes,
-    loading,
-    error,
-    vencidasCobranza,
-    vencidasPagos,
-    semanasCobranza,
-    semanasPagos,
-    totalCobranza,
-    totalPagos,
-  } = useVencimientos();
+    mes, navegarMes, loading, error,
+    vencidasCobranza, vencidasPagos,
+    semanasCobranza, semanasPagos,
+    totalCobranza, totalPagos
+  } = useVencimientos()
 
   return (
-    <div style={{ padding: '32px 24px' }}>
+    <div style={{ padding: '32px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>Vencimientos</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navegarMes(-1)} style={navBtnStyle}>←</button>
-          <span style={{ fontSize: 16, fontWeight: 600, minWidth: 160, textAlign: 'center' }}>
+      {/* Header: grid 3 columnas — igual que ViajesPage */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '24px' }}>
+
+        {/* Izquierda: vacío */}
+        <div />
+
+        {/* Centro: navegador de mes */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => navegarMes(-1)}
+            style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, color: theme.colors.textSecondary, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+          >
+            ←
+          </button>
+          <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, fontWeight: theme.font.weight.semibold, color: theme.colors.textPrimary, minWidth: '140px', textAlign: 'center' }}>
             {formatMes(mes)}
           </span>
-          <button onClick={() => navegarMes(1)} style={navBtnStyle}>→</button>
+          <button
+            onClick={() => navegarMes(1)}
+            style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, color: theme.colors.textSecondary, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+          >
+            →
+          </button>
         </div>
+
+        {/* Derecha: vacío */}
+        <div />
       </div>
 
-      {loading && <p style={{ color: '#888' }}>Cargando...</p>}
-      {error   && <p style={{ color: '#c0392b' }}>{error}</p>}
+      {loading && <div style={{ color: theme.colors.textMuted }}>Cargando...</div>}
+      {error && <div style={{ color: theme.colors.danger }}>{error}</div>}
 
       {!loading && !error && (
-        <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          <TablaVencimientos
-            titulo="Cobranza"
-            vencidas={vencidasCobranza}
-            semanas={semanasCobranza}
-            total={totalCobranza}
-          />
-          <TablaVencimientos
-            titulo="Pagos"
-            vencidas={vencidasPagos}
-            semanas={semanasPagos}
-            total={totalPagos}
-          />
+        <div style={{ display: 'flex', gap: '24px' }}>
+          <TablaVencimientos titulo="Cobranza" vencidas={vencidasCobranza} semanas={semanasCobranza} total={totalCobranza} />
+          <TablaVencimientos titulo="Pagos" vencidas={vencidasPagos} semanas={semanasPagos} total={totalPagos} />
         </div>
       )}
     </div>
-  );
+  )
 }
-
-// Estilos compartidos
-const thStyle: React.CSSProperties = {
-  padding: '10px 12px',
-  textAlign: 'left',
-  fontSize: 13,
-  fontWeight: 600,
-  color: '#fff',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '9px 12px',
-  fontSize: 13,
-  color: '#2d2d2d',
-};
-
-const navBtnStyle: React.CSSProperties = {
-  background: 'none',
-  border: '1px solid #ccc',
-  borderRadius: 6,
-  padding: '4px 12px',
-  cursor: 'pointer',
-  fontSize: 16,
-  color: '#333',
-};

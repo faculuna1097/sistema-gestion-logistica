@@ -1,3 +1,5 @@
+// src/hooks/useFleteros.ts
+
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 import type { Fletero, CreateFleteroDTO } from '../types'
@@ -24,7 +26,7 @@ export function useFleteros() {
 
   const crearFletero = async (dto: CreateFleteroDTO) => {
     const nuevo = await api.post<Fletero>('/fleteros', dto)
-    setFleteros(prev => [...prev, nuevo])
+    setFleteros(prev => [...prev, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     return nuevo
   }
 

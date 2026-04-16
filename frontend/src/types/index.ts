@@ -1,21 +1,37 @@
-// src/types/index.ts Frontend TypeScript types
+// frontend/src/types/index.ts - TypeScript types
 
 export interface Cliente {
   id: number
   nombre: string
+  email: string | null
+  telefono: string | null
+  cbu: string | null
+  cuit: string | null
 }
 
 export interface CreateClienteDTO {
   nombre: string
+  email?: string | null
+  telefono?: string | null
+  cbu?: string | null
+  cuit?: string | null
 }
 
 export interface Fletero {
   id: number
   nombre: string
+  email: string | null
+  telefono: string | null
+  cbu: string | null
+  cuit: string | null
 }
 
 export interface CreateFleteroDTO {
   nombre: string
+  email?: string | null
+  telefono?: string | null
+  cbu?: string | null
+  cuit?: string | null
 }
 
 export interface Viaje {
@@ -29,7 +45,11 @@ export interface Viaje {
   costoFletero: number
   createdAt?: string
   numeroFacturaCobranza: string | null
+  estadoFacturaCobranza: EstadoFactura | null
+  vencimientoCobranza: string | null
   numeroFacturaPagoFletero: string | null
+  estadoFacturaPagoFletero: EstadoFactura | null
+  vencimientoPagoFletero: string | null
 }
 
 export interface CreateViajeDTO {

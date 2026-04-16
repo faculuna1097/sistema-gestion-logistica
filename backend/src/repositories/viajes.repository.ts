@@ -1,7 +1,8 @@
+// src/repositories/viajes.repository.ts
+
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
-import { Viaje, CreateViajeDTO } from '../types';
-
+import { Viaje, CreateViajeDTO, EstadoFactura } from '../types';
 
 const SELECT = `
   id, fecha, cliente_id, valor_cliente, fletero_id, costo_fletero, created_at
@@ -9,21 +10,34 @@ const SELECT = `
 
 const SELECT_CON_FACTURAS = `
   v.id, v.fecha, v.cliente_id, v.valor_cliente, v.fletero_id, v.costo_fletero, v.created_at,
-  fc.numero AS numero_factura_cobranza,
-  fp.numero AS numero_factura_pago_fletero
+  fc.numero  AS numero_factura_cobranza,
+  fc.estado  AS estado_factura_cobranza,
+  fc.vencimiento AS vencimiento_cobranza,
+  fp.numero  AS numero_factura_pago_fletero,
+  fp.estado  AS estado_factura_pago_fletero,
+  fp.vencimiento AS vencimiento_pago_fletero
 `;
 
+// reemplazá mapRow
 function mapRow(row: Record<string, unknown>): Viaje {
   return {
-    id:                       Number(row.id),
-    fecha:                    new Date(row.fecha as string).toISOString().slice(0, 10),
-    clienteId:                Number(row.cliente_id),
-    valorCliente:             Number(row.valor_cliente),
-    fleteroId:                Number(row.fletero_id),
-    costoFletero:             Number(row.costo_fletero),
-    createdAt:                row.created_at as string,
-    numeroFacturaCobranza:    (row.numero_factura_cobranza as string) ?? null,
-    numeroFacturaPagoFletero: (row.numero_factura_pago_fletero as string) ?? null,
+    id:                          Number(row.id),
+    fecha:                       new Date(row.fecha as string).toISOString().slice(0, 10),
+    clienteId:                   Number(row.cliente_id),
+    valorCliente:                Number(row.valor_cliente),
+    fleteroId:                   Number(row.fletero_id),
+    costoFletero:                Number(row.costo_fletero),
+    createdAt:                   row.created_at as string,
+    numeroFacturaCobranza:       (row.numero_factura_cobranza    as string)  ?? null,
+    estadoFacturaCobranza:       (row.estado_factura_cobranza    as EstadoFactura) ?? null,
+    vencimientoCobranza:         row.vencimiento_cobranza
+                                   ? new Date(row.vencimiento_cobranza as string).toISOString().slice(0, 10)
+                                   : null,
+    numeroFacturaPagoFletero:    (row.numero_factura_pago_fletero as string)  ?? null,
+    estadoFacturaPagoFletero:    (row.estado_factura_pago_fletero as EstadoFactura) ?? null,
+    vencimientoPagoFletero:      row.vencimiento_pago_fletero
+                                   ? new Date(row.vencimiento_pago_fletero as string).toISOString().slice(0, 10)
+                                   : null,
   };
 }
 

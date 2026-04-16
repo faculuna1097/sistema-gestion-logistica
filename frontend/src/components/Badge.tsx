@@ -1,3 +1,5 @@
+// frontend/src/components/Badge.tsx
+
 import { theme } from '../theme'
 import type { EstadoFactura, TipoFactura } from '../types'
 
@@ -7,10 +9,10 @@ const estadoConfig: Record<EstadoFactura, { bg: string; text: string; dot: strin
   pagada:       { ...theme.colors.pagada,      label: 'Pagada' },
 }
 
-const tipoConfig: Record<TipoFactura, { label: string }> = {
-  cobranza:      { label: 'Cobranza' },
-  pago_fletero:  { label: 'Pago fletero' },
-  pago_servicio: { label: 'Pago servicio' },
+const tipoConfig: Record<TipoFactura, { label: string; bg: string; text: string }> = {
+  cobranza:      { label: 'Cobranza',      bg: '#eaf4ff', text: '#0c5a9e' }, // celeste — igual que facturada
+  pago_fletero:  { label: 'Pago fletero',  bg: '#f0eaff', text: '#5b21b6' }, // violeta
+  pago_servicio: { label: 'Pago servicio', bg: theme.colors.borderLight, text: theme.colors.textSecondary }, // pendiente, sin cambio
 }
 
 export function EstadoBadge({ estado }: { estado: EstadoFactura }) {
@@ -42,8 +44,8 @@ export function TipoBadge({ tipo }: { tipo: TipoFactura }) {
   return (
     <span style={{
       display: 'inline-flex',
-      background: theme.colors.borderLight,
-      color: theme.colors.textSecondary,
+      background: cfg.bg,
+      color: cfg.text,
       padding: '3px 9px',
       borderRadius: '20px',
       fontFamily: '"DM Sans", sans-serif',

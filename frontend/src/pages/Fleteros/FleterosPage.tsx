@@ -1,4 +1,4 @@
-// src/pages/Fleteros/FleterosPage.tsx - Página de gestión de fleteros
+// src/pages/Fleteros/FleterosPage.tsx
 
 import { useState } from 'react'
 import { useFleteros } from '../../hooks/useFleteros'
@@ -6,48 +6,141 @@ import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { FormField, inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
+import { validateContactForm, hasErrors } from '../../utils/validation'
+
+import type { ContactFormErrors } from '../../utils/validation'
 import type { Fletero } from '../../types'
 
-interface FormState { nombre: string }
-const emptyForm: FormState = { nombre: '' }
+// — Íconos —
+function IconCopy() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
+function IconCheck() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  )
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      title={copied ? '¡Copiado!' : 'Copiar'}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+        borderRadius: theme.radius.sm,
+        color: copied ? theme.colors.primary : theme.colors.textMuted,
+        transition: 'color 0.15s',
+      }}
+    >
+      {copied ? <IconCheck /> : <IconCopy />}
+    </button>
+  )
+}
+
+function DetailRow({ label, value, copiable = false }: { label: string; value: string | null; copiable?: boolean }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '10px 0',
+      borderBottom: `1px solid ${theme.colors.borderLight}`,
+    }}>
+      <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted, minWidth: '80px' }}>
+        {label}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{
+          fontFamily: theme.font.family, fontSize: theme.font.size.base,
+          color: value ? theme.colors.textPrimary : theme.colors.textMuted,
+          fontStyle: value ? 'normal' : 'italic',
+        }}>
+          {value ?? 'Sin datos'}
+        </span>
+        {copiable && value && <CopyButton value={value} />}
+      </div>
+    </div>
+  )
+}
+
+interface FormState { nombre: string; email: string; telefono: string; cbu: string; cuit: string }
+const emptyForm: FormState = { nombre: '', email: '', telefono: '', cbu: '', cuit: '' }
+
+function fleteroToForm(f: Fletero): FormState {
+  return {
+    nombre:   f.nombre,
+    email:    f.email    ?? '',
+    telefono: f.telefono ?? '',
+    cbu:      f.cbu      ?? '',
+    cuit:     f.cuit     ?? '',
+  }
+}
 
 export function FleterosPage() {
   const { fleteros, loading, error, crearFletero, editarFletero, eliminarFletero } = useFleteros()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<Fletero | null>(null)
+
+  const [createOpen,   setCreateOpen]   = useState(false)
+  const [detailTarget, setDetailTarget] = useState<Fletero | null>(null)
+  const [editTarget,   setEditTarget]   = useState<Fletero | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Fletero | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [formError, setFormError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+
+  const [form,      setForm]      = useState<FormState>(emptyForm)
+  const [formErrors, setFormErrors] = useState<ContactFormErrors>({})
+  const [saving,    setSaving]    = useState(false)
 
   const openCrear = () => {
-    setEditTarget(null)
     setForm(emptyForm)
-    setFormError(null)
-    setModalOpen(true)
+    setFormErrors({})
+    setCreateOpen(true)
   }
 
   const openEditar = (f: Fletero) => {
+    setDetailTarget(null)
+    setForm(fleteroToForm(f))
+    setFormErrors({})
     setEditTarget(f)
-    setForm({ nombre: f.nombre })
-    setFormError(null)
-    setModalOpen(true)
   }
 
   const handleSubmit = async () => {
-    if (!form.nombre.trim()) { setFormError('El nombre es requerido'); return }
+    const errors = validateContactForm(form)
+    if (hasErrors(errors)) { setFormErrors(errors); return }
+
     setSaving(true)
-    setFormError(null)
+    setFormErrors({})
     try {
-      const dto = { nombre: form.nombre.trim() }
+      const dto = {
+        nombre:   form.nombre.trim(),
+        email:    form.email.trim()    || null,
+        telefono: form.telefono.trim() || null,
+        cbu:      form.cbu.trim()      || null,
+        cuit:     form.cuit.trim()     || null,
+      }
       if (editTarget) {
-        await editarFletero(editTarget.id, dto)
+        const actualizado = await editarFletero(editTarget.id, dto)
+        setEditTarget(null)
+        setDetailTarget(actualizado)
       } else {
         await crearFletero(dto)
+        setCreateOpen(false)
       }
-      setModalOpen(false)
     } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Error al guardar')
+      setFormErrors({ nombre: err instanceof Error ? err.message : 'Error al guardar' })
     } finally {
       setSaving(false)
     }
@@ -59,14 +152,41 @@ export function FleterosPage() {
     try {
       await eliminarFletero(deleteTarget.id)
       setDeleteTarget(null)
+      setDetailTarget(null)
     } finally {
       setSaving(false)
     }
   }
 
+  const formModal = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <FormField label="Nombre" required error={formErrors.nombre}>
+        <input style={inputStyle} value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre del fletero" autoFocus />
+      </FormField>
+      <FormField label="Email" error={formErrors.email}>
+        <input style={inputStyle} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="email@ejemplo.com" />
+      </FormField>
+      <FormField label="Teléfono" error={formErrors.telefono}>
+        <input style={inputStyle} value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="11 1234 5678" />
+      </FormField>
+      <FormField label="CBU" error={formErrors.cbu}>
+        <input style={inputStyle} value={form.cbu} onChange={e => setForm(p => ({ ...p, cbu: e.target.value }))} placeholder="22 dígitos" />
+      </FormField>
+      <FormField label="CUIT" error={formErrors.cuit}>
+        <input style={inputStyle} value={form.cuit} onChange={e => setForm(p => ({ ...p, cuit: e.target.value }))} placeholder="XX-XXXXXXXX-X" />
+      </FormField>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+        <Button variant="secondary" onClick={() => { setCreateOpen(false); setEditTarget(null); setFormErrors({}) }}>Cancelar</Button>
+        <Button onClick={handleSubmit} loading={saving}>{editTarget ? 'Guardar cambios' : 'Crear fletero'}</Button>
+      </div>
+    </div>
+  )
+
   return (
     <div style={{ padding: '32px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+
+      {/* — Header — */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
         <h1 style={{ margin: 0, fontFamily: theme.font.family, fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.textPrimary }}>
           Fleteros
         </h1>
@@ -74,62 +194,95 @@ export function FleterosPage() {
       </div>
 
       {error && (
-        <div style={{ background: theme.colors.dangerLight, color: theme.colors.danger, padding: '12px 16px', borderRadius: theme.radius.md, marginBottom: '16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>
+        <div style={{ background: theme.colors.dangerLight, color: theme.colors.danger, padding: '12px 16px', borderRadius: theme.radius.md, marginBottom: '20px', fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>
           {error}
         </div>
       )}
 
-      <div style={{ background: theme.colors.surface, borderRadius: theme.radius.lg, border: `1px solid ${theme.colors.border}`, overflow: 'hidden', boxShadow: theme.shadow.sm }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
-              {['Nombre', ''].map(col => (
-                <th key={col} style={{ padding: '12px 20px', textAlign: 'left', fontFamily: theme.font.family, fontSize: theme.font.size.xs, fontWeight: theme.font.weight.semibold, color: theme.colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', background: theme.colors.surfaceHover }}>
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={2} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>Cargando...</td></tr>
-            ) : fleteros.length === 0 ? (
-              <tr><td colSpan={2} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay fleteros cargados</td></tr>
-            ) : fleteros.map((f, i) => (
-              <tr
-                key={f.id}
-                style={{ borderBottom: i < fleteros.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none', transition: 'background 0.1s' }}
-                onMouseEnter={e => (e.currentTarget.style.background = theme.colors.surfaceHover)}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              >
-                <td style={{ padding: '14px 20px', fontFamily: theme.font.family, fontSize: theme.font.size.base, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
-                  {f.nombre}
-                </td>
+      {/* — Grid — */}
+      {loading ? (
+        <p style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>Cargando...</p>
+      ) : fleteros.length === 0 ? (
+        <p style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>No hay fleteros cargados</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
+          {fleteros.map(f => (
+            <div
+              key={f.id}
+              onClick={() => setDetailTarget(f)}
+              style={{
+                background: theme.colors.surface,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+                padding: '20px',
+                cursor: 'pointer',
+                boxShadow: theme.shadow.sm,
+                transition: 'box-shadow 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.boxShadow = theme.shadow.md
+                e.currentTarget.style.borderColor = theme.colors.primary
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.boxShadow = theme.shadow.sm
+                e.currentTarget.style.borderColor = theme.colors.border
+              }}
+            >
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: theme.colors.primaryLight,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: '12px',
+                fontFamily: theme.font.family, fontSize: theme.font.size.md,
+                fontWeight: theme.font.weight.bold, color: theme.colors.primary,
+              }}>
+                {f.nombre.charAt(0).toUpperCase()}
+              </div>
 
-                <td style={{ padding: '14px 20px', textAlign: 'right' }}>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <Button size="sm" variant="secondary" onClick={() => openEditar(f)}>Editar</Button>
-                    <Button size="sm" variant="danger" onClick={() => setDeleteTarget(f)}>Eliminar</Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              <div style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, fontWeight: theme.font.weight.semibold, color: theme.colors.textPrimary, marginBottom: '10px' }}>
+                {f.nombre}
+              </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editTarget ? 'Editar fletero' : 'Nuevo fletero'}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <FormField label="Nombre" required error={formError || undefined}>
-            <input style={inputStyle} value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre del fletero" autoFocus />
-          </FormField>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} loading={saving}>{editTarget ? 'Guardar cambios' : 'Crear fletero'}</Button>
-          </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: f.telefono ? theme.colors.textSecondary : theme.colors.textMuted, fontStyle: f.telefono ? 'normal' : 'italic' }}>
+                  {f.telefono ?? 'Sin teléfono'}
+                </span>
+                <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: f.email ? theme.colors.textSecondary : theme.colors.textMuted, fontStyle: f.email ? 'normal' : 'italic' }}>
+                  {f.email ?? 'Sin email'}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
+      )}
+
+      {/* — Modal: detalle — */}
+      <Modal open={!!detailTarget} onClose={() => setDetailTarget(null)} title={detailTarget?.nombre ?? ''} width="440px">
+        {detailTarget && (
+          <div>
+            <DetailRow label="Email"    value={detailTarget.email} />
+            <DetailRow label="Teléfono" value={detailTarget.telefono} />
+            <DetailRow label="CBU"      value={detailTarget.cbu}  copiable />
+            <DetailRow label="CUIT"     value={detailTarget.cuit} copiable />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <Button variant="danger"    onClick={() => setDeleteTarget(detailTarget)}>Eliminar</Button>
+              <Button variant="secondary" onClick={() => openEditar(detailTarget)}>Editar</Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
+      {/* — Modal: crear — */}
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setFormErrors({}) }} title="Nuevo fletero">
+        {formModal}
+      </Modal>
+
+      {/* — Modal: editar — */}
+      <Modal open={!!editTarget} onClose={() => { setEditTarget(null); setFormErrors({}) }} title="Editar fletero">
+        {formModal}
+      </Modal>
+
+      {/* — Modal: confirmar eliminación — */}
       <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Eliminar fletero" width="400px">
         <div style={{ fontFamily: theme.font.family, fontSize: theme.font.size.base, color: theme.colors.textSecondary, marginBottom: '20px' }}>
           ¿Eliminar a <strong style={{ color: theme.colors.textPrimary }}>{deleteTarget?.nombre}</strong>? Esta acción no se puede deshacer.
@@ -139,6 +292,7 @@ export function FleterosPage() {
           <Button variant="danger" onClick={handleDelete} loading={saving}>Eliminar</Button>
         </div>
       </Modal>
+
     </div>
   )
 }

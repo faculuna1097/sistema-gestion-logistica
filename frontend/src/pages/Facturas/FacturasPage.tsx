@@ -1,3 +1,5 @@
+// frontend/src/pages/Facturas/FacturasPage.tsx
+
 import { useState, useMemo } from 'react'
 import { useFacturas } from '../../hooks/useFacturas'
 import { useClientes } from '../../hooks/useClientes'
@@ -24,6 +26,8 @@ function formatMoney(n: number) {
 
 type FiltroTitular = 'clientes' | 'fleteros' | null
 
+// ─── Estilos de tabla (consistentes con ViajesPage) ───────────────────────────
+
 const thStyle: React.CSSProperties = {
   padding: '12px 16px',
   fontFamily: theme.font.family,
@@ -44,13 +48,36 @@ const tdBaseStyle: React.CSSProperties = {
   color: theme.colors.textSecondary,
 }
 
+const tableWrapper: React.CSSProperties = {
+  background: theme.colors.surface,
+  borderRadius: theme.radius.lg,
+  border: `1px solid ${theme.colors.border}`,
+  overflow: 'hidden',
+  boxShadow: theme.shadow.sm,
+  marginBottom: '40px',
+}
+
+// ─── Subcomponentes ───────────────────────────────────────────────────────────
+
+// Título centrado con acción opcional a la derecha.
+// Usa flex: 1 en ambos lados para que el título quede centrado exacto
+// incluso cuando hay un botón a la derecha.
 function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-      <h2 style={{ margin: 0, fontFamily: theme.font.family, fontSize: theme.font.size.lg, fontWeight: theme.font.weight.semibold, color: theme.colors.textPrimary }}>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+        {action}
+      </div>
+      <h2 style={{
+        margin: 0,
+        fontFamily: theme.font.family,
+        fontSize: theme.font.size.lg,
+        fontWeight: theme.font.weight.semibold,
+        color: theme.colors.textPrimary,
+      }}>
         {title}
       </h2>
-      {action}
+      <div style={{ flex: 1 }} />
     </div>
   )
 }
@@ -64,6 +91,31 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
     </tr>
   )
 }
+
+// Botón de filtro: borde visible cuando inactivo para que se vea como botón
+function FiltroButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        fontFamily: theme.font.family,
+        fontSize: theme.font.size.base,
+        fontWeight: active ? theme.font.weight.semibold : theme.font.weight.medium,
+        padding: '10px 32px',
+        borderRadius: theme.radius.md,
+        border: `2px solid ${active ? theme.colors.primary : theme.colors.border}`,
+        background: active ? theme.colors.primary : theme.colors.surface,
+        color: active ? '#fff' : theme.colors.textSecondary,
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export function FacturasPage() {
   const [filtroTitular, setFiltroTitular] = useState<FiltroTitular>(null)
@@ -99,7 +151,6 @@ export function FacturasPage() {
     return '—'
   }
 
-  // Excluye pago_servicio siempre. Aplica filtro de titular.
   const facturasFiltradas = useMemo(() => {
     return facturas.filter(f => {
       if (f.tipo === 'pago_servicio') return false
@@ -109,22 +160,10 @@ export function FacturasPage() {
     })
   }, [facturas, filtroTitular])
 
-  const pendientes = useMemo(
-    () => facturasFiltradas.filter(f => f.estado === 'sin_facturar'),
-    [facturasFiltradas]
-  )
+  const pendientes = useMemo(() => facturasFiltradas.filter(f => f.estado === 'sin_facturar'), [facturasFiltradas])
+  const emitidas   = useMemo(() => facturasFiltradas.filter(f => f.estado === 'facturada'),    [facturasFiltradas])
+  const historial  = useMemo(() => facturasFiltradas.filter(f => f.estado === 'pagada'),       [facturasFiltradas])
 
-  const emitidas = useMemo(
-    () => facturasFiltradas.filter(f => f.estado === 'facturada'),
-    [facturasFiltradas]
-  )
-
-  const historial = useMemo(
-    () => facturasFiltradas.filter(f => f.estado === 'pagada'),
-    [facturasFiltradas]
-  )
-
-  // Agrupa emitidas por número de factura
   const gruposEmitidas = useMemo(() => {
     const map = new Map<string, Factura[]>()
     for (const f of emitidas) {
@@ -143,7 +182,6 @@ export function FacturasPage() {
     }))
   }, [emitidas])
 
-  // Validación de selección: todos deben tener el mismo titular
   const facturasSeleccionadas = pendientes.filter(f => seleccionados.has(f.id))
   const titularesUnicos = new Set(facturasSeleccionadas.map(f => f.clienteId ?? f.fleteroId))
   const seleccionValida = seleccionados.size > 0 && titularesUnicos.size === 1
@@ -162,17 +200,13 @@ export function FacturasPage() {
   }
 
   const handleAbrirModalFacturar = () => {
-    setFacturarForm({
-      numero: '',
-      fechaEmision: new Date().toISOString().slice(0, 10),
-      vencimiento: '',
-    })
+    setFacturarForm({ numero: '', fechaEmision: new Date().toISOString().slice(0, 10), vencimiento: '' })
     setFormError(null)
     setModalFacturar(true)
   }
 
   const handleConfirmarFacturar = async () => {
-    if (!facturarForm.numero.trim()) { setFormError('El número es requerido'); return }
+    if (!facturarForm.numero.trim()) { setFormError('El número es requerido');     return }
     if (!facturarForm.vencimiento)   { setFormError('El vencimiento es requerido'); return }
     setSaving(true)
     setFormError(null)
@@ -191,9 +225,7 @@ export function FacturasPage() {
     if (!revertirTarget) return
     setSaving(true)
     try {
-      for (const f of revertirTarget.items) {
-        await revertir(f.id)
-      }
+      for (const f of revertirTarget.items) await revertir(f.id)
       setRevertirTarget(null)
     } finally {
       setSaving(false)
@@ -204,63 +236,42 @@ export function FacturasPage() {
     if (!pagarTarget) return
     setSaving(true)
     try {
-      for (const f of pagarTarget.items) {
-        await pagar(f.id)
-      }
+      for (const f of pagarTarget.items) await pagar(f.id)
       setPagarTarget(null)
     } finally {
       setSaving(false)
     }
   }
 
-  const filtroBtn = (active: boolean): React.CSSProperties => ({
-    fontFamily: theme.font.family,
-    fontSize: theme.font.size.sm,
-    fontWeight: active ? theme.font.weight.semibold : theme.font.weight.regular,
-    padding: '8px 20px',
-    borderRadius: '8px',
-    border: 'none',
-    background: active ? theme.colors.primary : 'transparent',
-    color: active ? '#fff' : theme.colors.textSecondary,
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-  })
-
-  const tableWrapper: React.CSSProperties = {
-    background: theme.colors.surface,
-    borderRadius: theme.radius.lg,
-    border: `1px solid ${theme.colors.border}`,
-    overflow: 'hidden',
-    boxShadow: theme.shadow.sm,
-    marginBottom: '40px',
-  }
-
   if (loading) {
-    return (
-      <div style={{ padding: '32px', fontFamily: theme.font.family, color: theme.colors.textMuted }}>
-        Cargando...
-      </div>
-    )
+    return <div style={{ padding: '32px', fontFamily: theme.font.family, color: theme.colors.textMuted }}>Cargando...</div>
   }
 
   return (
     <div style={{ padding: '32px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        {/*<h1 style={{ margin: 0, fontFamily: theme.font.family, fontSize: theme.font.size.xl, fontWeight: theme.font.weight.bold, color: theme.colors.textPrimary }}>
-          Facturas
-        </h1>
-        */}
-        {/* Filtro titular */}
-        <div style={{ display: 'flex', gap: '4px', background: theme.colors.surfaceHover, borderRadius: '10px', padding: '4px' }}>
-          <button style={filtroBtn(filtroTitular === 'clientes')} onClick={() => setFiltroTitular(prev => prev === 'clientes' ? null : 'clientes')}>
-            Clientes
-          </button>
-          <button style={filtroBtn(filtroTitular === 'fleteros')} onClick={() => setFiltroTitular(prev => prev === 'fleteros' ? null : 'fleteros')}>
-            Fleteros
-          </button>
+      {/* Header: grid 3 columnas — igual que ViajesPage */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '32px' }}>
+
+        {/* Izquierda: vacío */}
+        <div />
+
+        {/* Centro: filtro Clientes / Fleteros */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <FiltroButton
+            label="Clientes"
+            active={filtroTitular === 'clientes'}
+            onClick={() => setFiltroTitular(prev => prev === 'clientes' ? null : 'clientes')}
+          />
+          <FiltroButton
+            label="Fleteros"
+            active={filtroTitular === 'fleteros'}
+            onClick={() => setFiltroTitular(prev => prev === 'fleteros' ? null : 'fleteros')}
+          />
         </div>
+
+        {/* Derecha: vacío */}
+        <div />
       </div>
 
       {error && (

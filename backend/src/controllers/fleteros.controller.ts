@@ -32,14 +32,14 @@ export async function getById(req: Request, res: Response): Promise<void> {
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {
-    const { nombre } = req.body;
+    const { nombre, email, telefono, cbu, cuit } = req.body;
 
     if (!nombre) {
       res.status(400).json({ error: 'El campo nombre es requerido' });
       return;
     }
 
-    const fletero = await fleterosService.create({ nombre });
+    const fletero = await fleterosService.create({ nombre, email, telefono, cbu, cuit });
     res.status(201).json(fletero);
   } catch (err: any) {
     if (err.code === '23505') {
@@ -54,9 +54,9 @@ export async function create(req: Request, res: Response): Promise<void> {
 export async function update(req: Request, res: Response): Promise<void> {
   try {
     const id = Number(req.params.id);
-    const { nombre } = req.body;
+    const { nombre, email, telefono, cbu, cuit } = req.body;
 
-    const fletero = await fleterosService.update(id, { nombre });
+    const fletero = await fleterosService.update(id, { nombre, email, telefono, cbu, cuit });
 
     if (!fletero) {
       res.status(404).json({ error: 'Fletero no encontrado' });

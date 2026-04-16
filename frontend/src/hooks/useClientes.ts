@@ -1,3 +1,5 @@
+// frontend/src/hooks/useClientes.ts
+
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 import type { Cliente, CreateClienteDTO } from '../types'
@@ -24,7 +26,7 @@ export function useClientes() {
 
   const crearCliente = async (dto: CreateClienteDTO) => {
     const nuevo = await api.post<Cliente>('/clientes', dto)
-    setClientes(prev => [...prev, nuevo])
+    setClientes(prev => [...prev, nuevo].sort((a, b) => a.nombre.localeCompare(b.nombre)))
     return nuevo
   }
 

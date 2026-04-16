@@ -32,14 +32,14 @@ export async function getById(req: Request, res: Response): Promise<void> {
 
 export async function create(req: Request, res: Response): Promise<void> {
   try {
-    const { nombre } = req.body;
+    const { nombre, email, telefono, cbu, cuit } = req.body;
 
     if (!nombre) {
       res.status(400).json({ error: 'El campo nombre es requerido' });
       return;
     }
 
-    const cliente = await clientesService.create({ nombre });
+    const cliente = await clientesService.create({ nombre, email, telefono, cbu, cuit });
     res.status(201).json(cliente);
   } catch (err: any) {
     if (err.code === '23505') {
@@ -54,9 +54,9 @@ export async function create(req: Request, res: Response): Promise<void> {
 export async function update(req: Request, res: Response): Promise<void> {
   try {
     const id = Number(req.params.id);
-    const { nombre } = req.body;
+    const { nombre, email, telefono, cbu, cuit } = req.body;
 
-    const cliente = await clientesService.update(id, { nombre });
+    const cliente = await clientesService.update(id, { nombre, email, telefono, cbu, cuit });
 
     if (!cliente) {
       res.status(404).json({ error: 'Cliente no encontrado' });

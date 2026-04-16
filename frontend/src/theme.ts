@@ -1,3 +1,5 @@
+// frontend/src/theme.ts - Centralized theme configuration for the application
+
 export const theme = {
   colors: {
     // Sidebar
