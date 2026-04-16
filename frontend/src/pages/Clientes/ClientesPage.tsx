@@ -6,55 +6,11 @@ import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { FormField, inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
+import { CopyButton } from '../../components/CopyButton'
 import { validateContactForm, hasErrors } from '../../utils/validation' 
 
 import type { ContactFormErrors } from '../../utils/validation'
 import type { Cliente } from '../../types'
-
-// — Íconos —
-function IconCopy() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="13" height="13" rx="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  )
-}
-
-function IconCheck() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )
-}
-
-// — Botón copiar con feedback visual —
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(value)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      title={copied ? '¡Copiado!' : 'Copiar'}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-        borderRadius: theme.radius.sm,
-        color: copied ? theme.colors.primary : theme.colors.textMuted,
-        transition: 'color 0.15s',
-      }}
-    >
-      {copied ? <IconCheck /> : <IconCopy />}
-    </button>
-  )
-}
 
 // — Fila en el modal de detalle —
 function DetailRow({ label, value, copiable = false }: { label: string; value: string | null; copiable?: boolean }) {
@@ -75,7 +31,7 @@ function DetailRow({ label, value, copiable = false }: { label: string; value: s
         }}>
           {value ?? 'Sin datos'}
         </span>
-        {copiable && value && <CopyButton value={value} />}
+        {copiable && value && <CopyButton text={value} />}
       </div>
     </div>
   )

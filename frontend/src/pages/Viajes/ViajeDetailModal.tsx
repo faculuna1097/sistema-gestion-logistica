@@ -1,9 +1,10 @@
 // frontend/src/pages/Viajes/ViajeDetailModal.tsx
 
-import { useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
 import { theme } from '../../theme'
+import { CopyButton } from '../../components/CopyButton'
+import { getEstadoVisual } from '../../utils/estadoFactura'
 import type { Viaje, EstadoFactura } from '../../types'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -31,66 +32,7 @@ function formatMoney(n: number) {
   }).format(n)
 }
 
-const HOY = new Date().toISOString().slice(0, 10)
-const DIAS_ALERTA = 7
-const LIMITE_POR_VENCER = new Date(Date.now() + DIAS_ALERTA * 24 * 60 * 60 * 1000)
-  .toISOString().slice(0, 10)
-
-// Misma lógica que en ViajesPage — devuelve color y label según estado + vencimiento
-function getEstadoVisual(
-  estado: EstadoFactura | null,
-  vencimiento: string | null
-): { color: string; label: string } {
-  if (!estado) return { color: theme.colors.textMuted, label: '—' }
-
-  if (estado === 'facturada' && vencimiento) {
-    if (vencimiento < HOY)               return { color: theme.colors.danger, label: 'Vencida' }
-    if (vencimiento <= LIMITE_POR_VENCER) return { color: '#f39c12',           label: 'Por vencer' }
-  }
-
-  switch (estado) {
-    case 'sin_facturar': return { color: '#aab5af',                  label: 'Sin facturar' }
-    case 'facturada':    return { color: theme.colors.facturada.dot, label: 'Facturada'    }
-    case 'pagada':       return { color: theme.colors.pagada.dot,    label: 'Pagada'       }
-  }
-}
-
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
-
-// Botón copiar con feedback visual (cambia a check por 2 segundos)
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('[viaje-detail] Error al copiar:', err)
-    }
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      title="Copiar"
-      style={{
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        padding: '2px 6px',
-        marginLeft: '6px',
-        fontSize: theme.font.size.sm,
-        color: copied ? theme.colors.primary : theme.colors.textMuted,
-        fontFamily: theme.font.family,
-        lineHeight: 1,
-      }}
-    >
-      {copied ? '✓' : '⧉'}
-    </button>
-  )
-}
 
 // Fila del detalle: label a la izquierda, valor a la derecha
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {

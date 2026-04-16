@@ -10,12 +10,10 @@ import { inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
 import { ViajeForm } from './ViajeForm'
 import { ViajeDetailModal } from './ViajeDetailModal'
+import { getEstadoVisual, LIMITE_POR_VENCER } from '../../utils/estadoFactura'
 import type { Viaje, EstadoFactura, CreateViajeDTO } from '../../types'
 
 // ─── Configuración visual ─────────────────────────────────────────────────────
-
-// Días restantes para considerar una factura "por vencer"
-const DIAS_ALERTA = 7
 
 // Opacidad del color de fondo de las filas (0 = sin color, 1 = sólido)
 const ROW_COLOR_OPACITY = 0.15
@@ -24,11 +22,6 @@ const ROW_COLOR_OPACITY = 0.15
 const ROW_HOVER_DARKEN = 0.05
 
 // ─── Helpers de fecha ─────────────────────────────────────────────────────────
-
-const HOY = new Date().toISOString().slice(0, 10)
-
-const LIMITE_POR_VENCER = new Date(Date.now() + DIAS_ALERTA * 24 * 60 * 60 * 1000)
-  .toISOString().slice(0, 10)
 
 function formatFecha(fecha: string) {
   return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
@@ -47,25 +40,7 @@ function formatMoney(n: number) {
 // Cada estado tiene un color de punto (dot) y un color de fondo de celda (bgHex).
 // sin_facturar no colorea la celda — bgHex: null.
 // "vencida" y "por vencer" son estados derivados, no existen en la DB.
-function getEstadoVisual(
-  estado: EstadoFactura | null,
-  vencimiento: string | null
-): { color: string; label: string; bgHex: string | null } {
-  if (!estado) return { color: theme.colors.textMuted, label: '—', bgHex: null }
 
-  if (estado === 'facturada' && vencimiento) {
-    if (vencimiento < HOY)
-      return { color: theme.colors.danger, label: 'Vencida',    bgHex: '#c0392b' }
-    if (vencimiento <= LIMITE_POR_VENCER)
-      return { color: '#f39c12',           label: 'Por vencer', bgHex: '#f39c12' }
-  }
-
-  switch (estado) {
-    case 'sin_facturar': return { color: '#aab5af',                label: 'Sin facturar', bgHex: null      }
-    case 'facturada':    return { color: theme.colors.facturada.dot, label: 'Facturada',    bgHex: '#3b9ede' }
-    case 'pagada':       return { color: theme.colors.pagada.dot,    label: 'Pagada',       bgHex: '#1a7a4a' }
-  }
-}
 
 // Convierte un hex a rgba aplicando la opacidad indicada
 function hexToRgba(hex: string, opacity: number): string {

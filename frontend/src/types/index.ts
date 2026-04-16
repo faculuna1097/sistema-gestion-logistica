@@ -43,7 +43,7 @@ export interface Viaje {
   fleteroId: number
   fleteroNombre?: string
   costoFletero: number
-  createdAt?: string
+  createdAt: string
   numeroRemito: string | null              // ← nuevo
   destinatario: string | null              // ← nuevo
   numeroFacturaCobranza: string | null
