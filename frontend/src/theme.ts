@@ -32,6 +32,12 @@ export const theme = {
     facturada:   { bg: '#eaf4ff', text: '#0c5a9e', dot: '#3b9ede' },
     pagada:      { bg: '#e8f4ee', text: '#1a5c35', dot: '#1a7a4a' },
 
+    // Fletero 
+    fletero: { bg: '#f0eaff', text: '#5b21b6' },
+
+    // Cliente
+    cliente: { bg: '#eaf4ff', text: '#0c5a9e' },
+
     // Danger
     danger: '#c0392b',
     dangerLight: '#fdf0ef',

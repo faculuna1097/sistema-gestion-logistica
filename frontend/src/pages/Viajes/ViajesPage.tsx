@@ -16,7 +16,7 @@ import type { Viaje, EstadoFactura } from '../../types'
 const DIAS_ALERTA = 7
 
 // Opacidad del color de fondo de las filas (0 = sin color, 1 = sólido)
-const ROW_COLOR_OPACITY = 0.1
+const ROW_COLOR_OPACITY = 0.14
 
 // ─── Helpers de fecha ─────────────────────────────────────────────────────────
 

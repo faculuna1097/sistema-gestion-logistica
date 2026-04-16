@@ -230,11 +230,11 @@ export function FleterosPage() {
             >
               <div style={{
                 width: '40px', height: '40px', borderRadius: '50%',
-                background: theme.colors.primaryLight,
+                background: theme.colors.fletero.bg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: '12px',
                 fontFamily: theme.font.family, fontSize: theme.font.size.md,
-                fontWeight: theme.font.weight.bold, color: theme.colors.primary,
+                fontWeight: theme.font.weight.bold, color: theme.colors.fletero.text,
               }}>
                 {f.nombre.charAt(0).toUpperCase()}
               </div>

@@ -11,7 +11,7 @@ const estadoConfig: Record<EstadoFactura, { bg: string; text: string; dot: strin
 
 const tipoConfig: Record<TipoFactura, { label: string; bg: string; text: string }> = {
   cobranza:      { label: 'Cobranza',      bg: '#eaf4ff', text: '#0c5a9e' }, // celeste — igual que facturada
-  pago_fletero:  { label: 'Pago fletero',  bg: '#f0eaff', text: '#5b21b6' }, // violeta
+  pago_fletero: { label: 'Pago fletero', bg: theme.colors.fletero.bg, text: theme.colors.fletero.text },
   pago_servicio: { label: 'Pago servicio', bg: theme.colors.borderLight, text: theme.colors.textSecondary }, // pendiente, sin cambio
 }
 
