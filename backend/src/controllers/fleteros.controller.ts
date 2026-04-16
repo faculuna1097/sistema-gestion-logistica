@@ -3,12 +3,16 @@
 import { Request, Response } from 'express';
 import * as fleterosService from '../services/fleteros.service';
 
+function isPgError(err: unknown): err is Error & { code: string } {
+  return err instanceof Error && 'code' in err;
+}
+
 export async function getAll(req: Request, res: Response): Promise<void> {
   try {
     const fleteros = await fleterosService.getAll();
     res.json(fleteros);
-  } catch (err: any) {
-    console.error('[fleteros] Error en getAll:', err.message);
+  } catch (err: unknown) {
+    console.error('[fleteros] Error en getAll:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -24,8 +28,8 @@ export async function getById(req: Request, res: Response): Promise<void> {
     }
 
     res.json(fletero);
-  } catch (err: any) {
-    console.error('[fleteros] Error en getById:', err.message);
+  } catch (err: unknown) {
+    console.error('[fleteros] Error en getById:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -41,12 +45,16 @@ export async function create(req: Request, res: Response): Promise<void> {
 
     const fletero = await fleterosService.create({ nombre, email, telefono, cbu, cuit });
     res.status(201).json(fletero);
-  } catch (err: any) {
-    if (err.code === '23505') {
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23505') {
       res.status(409).json({ error: 'Ya existe un fletero con ese nombre' });
       return;
     }
-    console.error('[fleteros] Error en create:', err.message);
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'Referencia inválida' });
+      return;
+    }
+    console.error('[fleteros] Error en create:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -64,12 +72,16 @@ export async function update(req: Request, res: Response): Promise<void> {
     }
 
     res.json(fletero);
-  } catch (err: any) {
-    if (err.code === '23505') {
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23505') {
       res.status(409).json({ error: 'Ya existe un fletero con ese nombre' });
       return;
     }
-    console.error('[fleteros] Error en update:', err.message);
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'Referencia inválida' });
+      return;
+    }
+    console.error('[fleteros] Error en update:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -85,8 +97,12 @@ export async function remove(req: Request, res: Response): Promise<void> {
     }
 
     res.json(fletero);
-  } catch (err: any) {
-    console.error('[fleteros] Error en remove:', err.message);
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'No se puede eliminar: el fletero tiene viajes asociados' });
+      return;
+    }
+    console.error('[fleteros] Error en remove:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

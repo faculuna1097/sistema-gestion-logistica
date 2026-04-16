@@ -33,7 +33,7 @@ export const viajesService = {
       );
 
       await client.query('COMMIT');
-      console.log(`[viajes] crear — completado | id: ${viaje.id}`);
+      console.log(`[viajes] crear — transacción completada | id: ${viaje.id}`);  // era: "completado"
       return viaje;
 
     } catch (err) {

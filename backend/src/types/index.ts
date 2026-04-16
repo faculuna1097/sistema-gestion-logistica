@@ -8,6 +8,7 @@ export type EstadoFactura = 'sin_facturar' | 'facturada' | 'pagada'
 export interface Cliente {
   id: number
   nombre: string
+  email: string | null
   telefono: string | null
   cbu: string | null
   cuit: string | null
@@ -25,6 +26,7 @@ export interface CreateClienteDTO {
 export interface Fletero {
   id: number
   nombre: string
+  email: string | null
   telefono: string | null
   cbu: string | null
   cuit: string | null

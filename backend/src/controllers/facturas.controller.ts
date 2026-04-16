@@ -3,6 +3,10 @@
 import { Request, Response } from 'express';
 import * as facturasService from '../services/facturas.service';
 
+function isPgError(err: unknown): err is Error & { code: string } {
+  return err instanceof Error && 'code' in err;
+}
+
 export async function getAll(req: Request, res: Response) {
   try {
     const { tipo, estado, cliente_id, fletero_id, viaje_id } = req.query;
@@ -14,9 +18,9 @@ export async function getAll(req: Request, res: Response) {
       viajeId: viaje_id ? Number(viaje_id) : undefined,
     });
     res.json(facturas);
-  } catch (err: any) {
-    console.error('[facturas] Error en getAll:', err.message);
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en getAll:', err instanceof Error ? err.message : err);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
 
@@ -24,10 +28,11 @@ export async function getById(req: Request, res: Response) {
   try {
     const factura = await facturasService.getById(Number(req.params.id));
     res.json(factura);
-  } catch (err: any) {
-    console.error('[facturas] Error en getById:', err.message);
-    const status = err.message.includes('no encontrada') ? 404 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en getById:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -35,10 +40,15 @@ export async function crear(req: Request, res: Response) {
   try {
     const factura = await facturasService.crear(req.body);
     res.status(201).json(factura);
-  } catch (err: any) {
-    console.error('[facturas] Error en crear:', err.message);
-    const status = err.message.includes('Solo se pueden') ? 400 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'Cliente o fletero no encontrado' });
+      return;
+    }
+    console.error('[facturas] Error en crear:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('Solo se pueden') ? 400 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -46,10 +56,11 @@ export async function actualizar(req: Request, res: Response) {
   try {
     const factura = await facturasService.actualizar(Number(req.params.id), req.body);
     res.json(factura);
-  } catch (err: any) {
-    console.error('[facturas] Error en actualizar:', err.message);
-    const status = err.message.includes('no encontrada') ? 404 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en actualizar:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -57,10 +68,11 @@ export async function facturar(req: Request, res: Response) {
   try {
     const factura = await facturasService.facturar(Number(req.params.id), req.body);
     res.json(factura);
-  } catch (err: any) {
-    console.error('[facturas] Error en facturar:', err.message);
-    const status = err.message.includes('no encontrada') ? 404 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en facturar:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -68,10 +80,11 @@ export async function pagar(req: Request, res: Response) {
   try {
     const factura = await facturasService.pagar(Number(req.params.id));
     res.json(factura);
-  } catch (err: any) {
-    console.error('[facturas] Error en pagar:', err.message);
-    const status = err.message.includes('no encontrada') ? 404 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en pagar:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -79,10 +92,11 @@ export async function eliminar(req: Request, res: Response) {
   try {
     await facturasService.eliminar(Number(req.params.id));
     res.status(204).send();
-  } catch (err: any) {
-    console.error('[facturas] Error en eliminar:', err.message);
-    const status = err.message.includes('no encontrada') ? 404 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en eliminar:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -90,10 +104,11 @@ export async function revertir(req: Request, res: Response) {
   try {
     const factura = await facturasService.revertir(Number(req.params.id));
     res.json(factura);
-  } catch (err: any) {
-    console.error('[facturas] Error en revertir:', err.message);
-    const status = err.message.includes('no encontrada') ? 404 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en revertir:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('no encontrada') ? 404 : 500;
+    res.status(status).json({ error: message });
   }
 }
 
@@ -104,9 +119,10 @@ export async function facturarLote(req: Request, res: Response) {
     const facturas = await facturasService.facturarLote(ids, { numero, fechaEmision, vencimiento });
     console.log('[facturas] facturarLote — completado | actualizadas:', facturas.length);
     res.json(facturas);
-  } catch (err: any) {
-    console.error('[facturas] Error en facturarLote:', err.message);
-    const status = err.message.includes('ya existe') || err.message.includes('Solo se actualizaron') ? 400 : 500;
-    res.status(status).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[facturas] Error en facturarLote:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    const status = message.includes('ya existe') || message.includes('Solo se actualizaron') ? 400 : 500;
+    res.status(status).json({ error: message });
   }
 }

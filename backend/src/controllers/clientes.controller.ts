@@ -3,12 +3,17 @@
 import { Request, Response } from 'express';
 import * as clientesService from '../services/clientes.service';
 
+// Type guard para errores de PostgreSQL (pg agrega .code al objeto Error)
+function isPgError(err: unknown): err is Error & { code: string } {
+  return err instanceof Error && 'code' in err;
+}
+
 export async function getAll(req: Request, res: Response): Promise<void> {
   try {
     const clientes = await clientesService.getAll();
     res.json(clientes);
-  } catch (err: any) {
-    console.error('[clientes] Error en getAll:', err.message);
+  } catch (err: unknown) {
+    console.error('[clientes] Error en getAll:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -24,8 +29,8 @@ export async function getById(req: Request, res: Response): Promise<void> {
     }
 
     res.json(cliente);
-  } catch (err: any) {
-    console.error('[clientes] Error en getById:', err.message);
+  } catch (err: unknown) {
+    console.error('[clientes] Error en getById:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -41,12 +46,16 @@ export async function create(req: Request, res: Response): Promise<void> {
 
     const cliente = await clientesService.create({ nombre, email, telefono, cbu, cuit });
     res.status(201).json(cliente);
-  } catch (err: any) {
-    if (err.code === '23505') {
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23505') {
       res.status(409).json({ error: 'Ya existe un cliente con ese nombre' });
       return;
     }
-    console.error('[clientes] Error en create:', err.message);
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'Referencia inválida' });
+      return;
+    }
+    console.error('[clientes] Error en create:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -64,12 +73,16 @@ export async function update(req: Request, res: Response): Promise<void> {
     }
 
     res.json(cliente);
-  } catch (err: any) {
-    if (err.code === '23505') {
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23505') {
       res.status(409).json({ error: 'Ya existe un cliente con ese nombre' });
       return;
     }
-    console.error('[clientes] Error en update:', err.message);
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'Referencia inválida' });
+      return;
+    }
+    console.error('[clientes] Error en update:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }
@@ -85,8 +98,12 @@ export async function remove(req: Request, res: Response): Promise<void> {
     }
 
     res.json(cliente);
-  } catch (err: any) {
-    console.error('[clientes] Error en remove:', err.message);
+  } catch (err: unknown) {
+    if (isPgError(err) && err.code === '23503') {
+      res.status(400).json({ error: 'No se puede eliminar: el cliente tiene viajes asociados' });
+      return;
+    }
+    console.error('[clientes] Error en remove:', err instanceof Error ? err.message : err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

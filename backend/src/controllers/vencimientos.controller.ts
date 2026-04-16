@@ -15,8 +15,9 @@ export async function getVencimientos(req: Request, res: Response): Promise<void
 
     const data = await vencimientosService.getVencimientos(mes);
     res.status(200).json(data);
-  } catch (err: any) {
-    console.error('[vencimientos] Error en getVencimientos:', err.message);
-    res.status(400).json({ error: err.message });
+  } catch (err: unknown) {
+    console.error('[vencimientos] Error en getVencimientos:', err instanceof Error ? err.message : err);
+    const message = err instanceof Error ? err.message : 'Error interno del servidor';
+    res.status(400).json({ error: message });
   }
 }
