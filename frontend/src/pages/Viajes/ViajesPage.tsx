@@ -6,9 +6,11 @@ import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
-import { FormField, inputStyle } from '../../components/FormFields'
+import { inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
-import type { Viaje, EstadoFactura } from '../../types'
+import { ViajeForm } from './ViajeForm'
+import { ViajeDetailModal } from './ViajeDetailModal'
+import type { Viaje, EstadoFactura, CreateViajeDTO } from '../../types'
 
 // ─── Configuración visual ─────────────────────────────────────────────────────
 
@@ -16,7 +18,10 @@ import type { Viaje, EstadoFactura } from '../../types'
 const DIAS_ALERTA = 7
 
 // Opacidad del color de fondo de las filas (0 = sin color, 1 = sólido)
-const ROW_COLOR_OPACITY = 0.14
+const ROW_COLOR_OPACITY = 0.15
+
+// Oscurecimiento extra al hacer hover sobre una fila (additive)
+const ROW_HOVER_DARKEN = 0.05
 
 // ─── Helpers de fecha ─────────────────────────────────────────────────────────
 
@@ -56,13 +61,13 @@ function getEstadoVisual(
   }
 
   switch (estado) {
-    case 'sin_facturar': return { color: '#aab5af',                  label: 'Sin facturar', bgHex: null      }
+    case 'sin_facturar': return { color: '#aab5af',                label: 'Sin facturar', bgHex: null      }
     case 'facturada':    return { color: theme.colors.facturada.dot, label: 'Facturada',    bgHex: '#3b9ede' }
     case 'pagada':       return { color: theme.colors.pagada.dot,    label: 'Pagada',       bgHex: '#1a7a4a' }
   }
 }
 
-// Convierte un hex a rgba aplicando la opacidad configurada
+// Convierte un hex a rgba aplicando la opacidad indicada
 function hexToRgba(hex: string, opacity: number): string {
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
@@ -70,10 +75,20 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`
 }
 
-// Devuelve el color de fondo para una celda según el estado de su factura
-function getRowCellBg(estado: EstadoFactura | null, vencimiento: string | null): string {
+// Devuelve el color de fondo para una celda según el estado de su factura.
+// Si hovered=true, suma una capa oscura adicional (gris) para feedback visual.
+function getRowCellBg(
+  estado: EstadoFactura | null,
+  vencimiento: string | null,
+  hovered: boolean,
+): string {
   const { bgHex } = getEstadoVisual(estado, vencimiento)
-  return bgHex ? hexToRgba(bgHex, ROW_COLOR_OPACITY) : 'transparent'
+  const baseColor = bgHex ? hexToRgba(bgHex, ROW_COLOR_OPACITY) : 'transparent'
+  if (!hovered) return baseColor
+  // Capa oscura adicional al hacer hover. Como CSS no permite "sumar" rgbas
+  // directamente, usamos un linear-gradient con un overlay negro semitransparente.
+  const overlay = `rgba(0, 0, 0, ${ROW_HOVER_DARKEN})`
+  return `linear-gradient(${overlay}, ${overlay}), ${baseColor === 'transparent' ? 'white' : baseColor}`
 }
 
 function EstadoDot({ estado, vencimiento }: { estado: EstadoFactura | null; vencimiento: string | null }) {
@@ -117,36 +132,25 @@ const COLUMNAS = [
   { id: 'acciones',    label: '',         align: 'right'  },
 ] as const
 
-// ─── Formulario ───────────────────────────────────────────────────────────────
-
-interface FormState {
-  fecha: string
-  clienteId: string
-  valorCliente: string
-  fleteroId: string
-  costoFletero: string
-}
-
-const emptyForm: FormState = {
-  fecha: new Date().toISOString().slice(0, 10),
-  clienteId: '',
-  valorCliente: '',
-  fleteroId: '',
-  costoFletero: '',
-}
-
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function ViajesPage() {
-  const { viajes, loading, error, crearViaje, eliminarViaje } = useViajes()
+  const { viajes, loading, error, crearViaje, editarViaje, eliminarViaje } = useViajes()
   const { clientes } = useClientes()
   const { fleteros } = useFleteros()
 
-  const [modalOpen, setModalOpen] = useState(false)
+  // 4 modales independientes (mismo patrón que ClientesPage):
+  //   createOpen   — modal de creación
+  //   detailTarget — viaje cuyo detalle se está mostrando
+  //   editTarget   — viaje que se está editando
+  //   deleteTarget — viaje a confirmar eliminación
+  const [createOpen, setCreateOpen]     = useState(false)
+  const [detailTarget, setDetailTarget] = useState<Viaje | null>(null)
+  const [editTarget, setEditTarget]     = useState<Viaje | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Viaje | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
-  const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const [hoveredRowId, setHoveredRowId] = useState<number | null>(null)
   const [mesFiltro, setMesFiltro] = useState(() => new Date().toISOString().slice(0, 7))
 
   const clienteMap = Object.fromEntries(clientes.map(c => [c.id, c.nombre]))
@@ -161,34 +165,20 @@ export function ViajesPage() {
     ? viajes
     : viajes.filter(v => v.fecha.startsWith(mesFiltro))
 
-  const openCrear = () => {
-    setForm(emptyForm)
-    setFormError(null)
-    setModalOpen(true)
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+
+  const handleCreate = async (dto: CreateViajeDTO | Partial<CreateViajeDTO>) => {
+    await crearViaje(dto as CreateViajeDTO)
+    setCreateOpen(false)
   }
 
-  const handleSubmit = async () => {
-    if (!form.fecha)                                          { setFormError('La fecha es requerida');         return }
-    if (!form.clienteId)                                      { setFormError('Seleccioná un cliente');         return }
-    if (!form.valorCliente || Number(form.valorCliente) <= 0) { setFormError('Ingresá el valor del viaje');    return }
-    if (!form.fleteroId)                                      { setFormError('Seleccioná un fletero');         return }
-    if (!form.costoFletero || Number(form.costoFletero) <= 0) { setFormError('Ingresá el costo del fletero'); return }
-
-    setSaving(true)
-    setFormError(null)
-    try {
-      await crearViaje({
-        fecha: form.fecha,
-        clienteId: Number(form.clienteId),
-        valorCliente: Number(form.valorCliente),
-        fleteroId: Number(form.fleteroId),
-        costoFletero: Number(form.costoFletero),
-      })
-      setModalOpen(false)
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Error al crear el viaje')
-    } finally {
-      setSaving(false)
+  const handleEdit = async (dto: CreateViajeDTO | Partial<CreateViajeDTO>) => {
+    if (!editTarget) return
+    const actualizado = await editarViaje(editTarget.id, dto)
+    setEditTarget(null)
+    // Si veníamos del modal de detalle, refrescamos el detalle con los datos nuevos
+    if (detailTarget && detailTarget.id === actualizado.id) {
+      setDetailTarget(actualizado)
     }
   }
 
@@ -198,14 +188,21 @@ export function ViajesPage() {
     try {
       await eliminarViaje(deleteTarget.id)
       setDeleteTarget(null)
+      setDetailTarget(null) // si se eliminó desde el detalle, también lo cerramos
     } finally {
       setSaving(false)
     }
   }
 
-  const gananciaPreview = form.valorCliente && form.costoFletero
-    ? Number(form.valorCliente) - Number(form.costoFletero)
-    : null
+  // ─── Helpers de UI ──────────────────────────────────────────────────────────
+
+  const resolveClienteNombre = (v: Viaje) =>
+    v.clienteNombre || clienteMap[v.clienteId] || `Cliente ${v.clienteId}`
+
+  const resolveFleteroNombre = (v: Viaje) =>
+    v.fleteroNombre || fleteroMap[v.fleteroId] || `Fletero ${v.fleteroId}`
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ padding: '32px' }}>
@@ -215,7 +212,7 @@ export function ViajesPage() {
 
         {/* Izquierda: botón nuevo viaje */}
         <div>
-          <Button onClick={openCrear}>+ Nuevo viaje</Button>
+          <Button onClick={() => setCreateOpen(true)}>+ Nuevo viaje</Button>
         </div>
 
         {/* Centro: selector de mes */}
@@ -275,19 +272,28 @@ export function ViajesPage() {
             ) : viajesFiltrados.length === 0 ? (
               <tr><td colSpan={COLUMNAS.length} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay viajes cargados</td></tr>
             ) : viajesFiltrados.map((v, i) => {
-              const ganancia = v.valorCliente - v.costoFletero
-              const cobBg    = getRowCellBg(v.estadoFacturaCobranza,    v.vencimientoCobranza)
-              const fletBg   = getRowCellBg(v.estadoFacturaPagoFletero, v.vencimientoPagoFletero)
+              const ganancia   = v.valorCliente - v.costoFletero
+              const isHovered  = hoveredRowId === v.id
+              const cobBg      = getRowCellBg(v.estadoFacturaCobranza,    v.vencimientoCobranza,    isHovered)
+              const fletBg     = getRowCellBg(v.estadoFacturaPagoFletero, v.vencimientoPagoFletero, isHovered)
+              const borderColor = isHovered ? theme.colors.border : theme.colors.borderLight
               return (
                 <tr
                   key={v.id}
-                  style={{ borderBottom: i < viajesFiltrados.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none' }}
+                  onClick={() => setDetailTarget(v)}
+                  onMouseEnter={() => setHoveredRowId(v.id)}
+                  onMouseLeave={() => setHoveredRowId(null)}
+                  style={{
+                    cursor: 'pointer',
+                    borderBottom: i < viajesFiltrados.length - 1 ? `1px solid ${borderColor}` : 'none',
+                    borderTop: isHovered ? `1px solid ${borderColor}` : 'none',
+                  }}
                 >
                   <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, whiteSpace: 'nowrap' }}>
                     {formatFecha(v.fecha)}
                   </td>
                   <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.base, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
-                    {v.clienteNombre || clienteMap[v.clienteId] || `Cliente ${v.clienteId}`}
+                    {resolveClienteNombre(v)}
                   </td>
                   <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
                     {v.numeroFacturaCobranza ?? '—'}
@@ -299,7 +305,7 @@ export function ViajesPage() {
                     {formatMoney(v.valorCliente)}
                   </td>
                   <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.base, color: theme.colors.textSecondary }}>
-                    {v.fleteroNombre || fleteroMap[v.fleteroId] || `Fletero ${v.fleteroId}`}
+                    {resolveFleteroNombre(v)}
                   </td>
                   <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
                     {v.numeroFacturaPagoFletero ?? '—'}
@@ -316,7 +322,16 @@ export function ViajesPage() {
                     </span>
                   </td>
                   <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right' }}>
-                    <Button size="sm" variant="danger" onClick={() => setDeleteTarget(v)}>×</Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={(e) => {
+                        e.stopPropagation()  // evita que se dispare el onClick de la fila
+                        setDeleteTarget(v)
+                      }}
+                    >
+                      ×
+                    </Button>
                   </td>
                 </tr>
               )
@@ -325,61 +340,44 @@ export function ViajesPage() {
         </table>
       </div>
 
-      {/* Modal nuevo viaje */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Ingresar viaje" width="520px">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <FormField label="Fecha" required>
-            <input style={inputStyle} type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} />
-          </FormField>
+      {/* Modal crear */}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Ingresar viaje" width="520px">
+        <ViajeForm
+          clientes={clientes}
+          fleteros={fleteros}
+          onSubmit={handleCreate}
+          onCancel={() => setCreateOpen(false)}
+        />
+      </Modal>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Cliente" required>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.clienteId} onChange={e => setForm(p => ({ ...p, clienteId: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Valor del viaje" required>
-              <input style={inputStyle} type="number" min={0} placeholder="0" value={form.valorCliente} onChange={e => setForm(p => ({ ...p, valorCliente: e.target.value }))} />
-            </FormField>
-          </div>
+      {/* Modal detalle (read-only) */}
+      <ViajeDetailModal
+        viaje={detailTarget}
+        clienteNombre={detailTarget ? resolveClienteNombre(detailTarget) : ''}
+        fleteroNombre={detailTarget ? resolveFleteroNombre(detailTarget) : ''}
+        onClose={() => setDetailTarget(null)}
+        onEdit={() => {
+          // Cerramos detalle y abrimos edición con el mismo viaje
+          if (detailTarget) {
+            setEditTarget(detailTarget)
+            setDetailTarget(null)
+          }
+        }}
+        onDelete={() => {
+          // Disparamos modal de confirmación; el detalle se cierra al confirmar/cancelar
+          if (detailTarget) setDeleteTarget(detailTarget)
+        }}
+      />
 
-          <div style={{ borderTop: `1px solid ${theme.colors.borderLight}` }} />
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Fletero" required>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.fleteroId} onChange={e => setForm(p => ({ ...p, fleteroId: e.target.value }))}>
-                <option value="">Seleccionar...</option>
-                {fleteros.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
-              </select>
-            </FormField>
-            <FormField label="Costo del fletero" required>
-              <input style={inputStyle} type="number" min={0} placeholder="0" value={form.costoFletero} onChange={e => setForm(p => ({ ...p, costoFletero: e.target.value }))} />
-            </FormField>
-          </div>
-
-          {gananciaPreview !== null && (
-            <div style={{ background: theme.colors.primaryLight, borderRadius: theme.radius.md, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.primary, fontWeight: theme.font.weight.medium }}>
-                Ganancia estimada
-              </span>
-              <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, fontWeight: theme.font.weight.bold, color: gananciaPreview >= 0 ? theme.colors.primary : theme.colors.danger }}>
-                {formatMoney(gananciaPreview)}
-              </span>
-            </div>
-          )}
-
-          {formError && (
-            <div style={{ color: theme.colors.danger, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>
-              {formError}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
-            <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} loading={saving}>Ingresar viaje</Button>
-          </div>
-        </div>
+      {/* Modal editar */}
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title="Editar viaje" width="520px">
+        <ViajeForm
+          viaje={editTarget}
+          clientes={clientes}
+          fleteros={fleteros}
+          onSubmit={handleEdit}
+          onCancel={() => setEditTarget(null)}
+        />
       </Modal>
 
       {/* Modal confirmar eliminación */}
@@ -392,6 +390,7 @@ export function ViajesPage() {
           <Button variant="danger" onClick={handleDelete} loading={saving}>Eliminar</Button>
         </div>
       </Modal>
+
     </div>
   )
 }

@@ -22,16 +22,26 @@ export function useViajes() {
 
   useEffect(() => { fetchViajes() }, [fetchViajes])
 
+// AGREGAR VIAJE
   const crearViaje = async (dto: CreateViajeDTO) => {
     const nuevo = await api.post<Viaje>('/viajes', dto)
     setViajes(prev => [nuevo, ...prev])
     return nuevo
   }
 
+// EDITAR VIAJE
+  const editarViaje = async (id: number, dto: Partial<CreateViajeDTO>) => {
+      const actualizado = await api.put<Viaje>(`/viajes/${id}`, dto)
+      setViajes(prev => prev.map(v => v.id === id ? actualizado : v))
+      return actualizado
+  }
+
+
+// ELIMINAR VIAJE
   const eliminarViaje = async (id: number) => {
     await api.delete(`/viajes/${id}`)
     setViajes(prev => prev.filter(v => v.id !== id))
   }
 
-  return { viajes, loading, error, crearViaje, eliminarViaje, refetch: fetchViajes }
+  return { viajes, loading, error, crearViaje, editarViaje, eliminarViaje, refetch: fetchViajes }
 }

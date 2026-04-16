@@ -39,7 +39,6 @@ export interface CreateFleteroDTO {
 }
 
 // VIAJES
-// reemplazá la interface Viaje
 export interface Viaje {
   id: number
   fecha: string
@@ -48,6 +47,8 @@ export interface Viaje {
   fleteroId: number
   costoFletero: number
   createdAt: string
+  numeroRemito: string | null              // ← nuevo
+  destinatario: string | null              // ← nuevo
   numeroFacturaCobranza: string | null
   estadoFacturaCobranza: EstadoFactura | null
   vencimientoCobranza: string | null
@@ -62,6 +63,8 @@ export interface CreateViajeDTO {
   valorCliente: number
   fleteroId: number
   costoFletero: number
+  numeroRemito?: string | null             // ← nuevo
+  destinatario?: string | null             // ← nuevo
 }
 
 // FACTURAS

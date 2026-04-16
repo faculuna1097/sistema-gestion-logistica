@@ -44,6 +44,8 @@ export interface Viaje {
   fleteroNombre?: string
   costoFletero: number
   createdAt?: string
+  numeroRemito: string | null              // ← nuevo
+  destinatario: string | null              // ← nuevo
   numeroFacturaCobranza: string | null
   estadoFacturaCobranza: EstadoFactura | null
   vencimientoCobranza: string | null
@@ -58,6 +60,8 @@ export interface CreateViajeDTO {
   valorCliente: number
   fleteroId: number
   costoFletero: number
+  numeroRemito?: string | null             // ← nuevo
+  destinatario?: string | null             // ← nuevo
 }
 
 export type TipoFactura = 'cobranza' | 'pago_fletero' | 'pago_servicio'
