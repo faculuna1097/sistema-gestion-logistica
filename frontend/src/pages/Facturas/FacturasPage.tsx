@@ -297,7 +297,7 @@ export function FacturasPage() {
               </Button>
             </div>
           ) : (
-            <Button onClick={() => setModoSeleccion(true)}>Facturar</Button>
+            <Button onClick={() => setModoSeleccion(true)}>+ Nueva factura</Button>
           )
         }
       />
