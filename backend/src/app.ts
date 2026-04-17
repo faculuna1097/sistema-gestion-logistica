@@ -1,19 +1,49 @@
+// backend/src/app.ts
+
 import express from 'express'
 import dotenv from 'dotenv'
+import cors from 'cors'
 import { pool } from './config/db'
 import clientesRouter from './routes/clientes.routes'
 import fleterosRouter from './routes/fleteros.routes'
 import viajesRouter from './routes/viajes.routes'
 import facturasRouter from './routes/facturas.routes'
-import vencimientosRouter from './routes/vencimientos.routes';
-import cors from 'cors'
-
+import vencimientosRouter from './routes/vencimientos.routes'
 
 dotenv.config()
 
 const app = express()
+
+// CORS — los orígenes permitidos vienen de la variable CORS_ORIGINS,
+// separados por coma. Esto permite tener una config distinta en local
+// (solo localhost) y en producción (localhost + dominio de Vercel)
+// sin tocar código.
+//
+// Ejemplo en .env local:    CORS_ORIGINS=http://localhost:5173
+// Ejemplo en Render:        CORS_ORIGINS=http://localhost:5173,https://mi-app.vercel.app
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Requests sin Origin header (Postman, curl, healthchecks de Render)
+      // son permitidas. El Origin header solo lo manda el navegador.
+      if (!origin) return callback(null, true)
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true)
+      }
+
+      console.warn(`[cors] origen bloqueado: ${origin}`)
+      return callback(new Error(`Origen no permitido por CORS: ${origin}`))
+    },
+  })
+)
+
 app.use(express.json())
-app.use(cors({ origin: 'http://localhost:5173' }))
 
 const PORT = process.env.PORT || 3000
 
@@ -21,8 +51,7 @@ app.use('/clientes', clientesRouter)
 app.use('/fleteros', fleterosRouter)
 app.use('/viajes', viajesRouter)
 app.use('/facturas', facturasRouter)
-app.use('/vencimientos', vencimientosRouter);
-
+app.use('/vencimientos', vencimientosRouter)
 
 app.get('/health', async (req, res) => {
   try {
@@ -35,4 +64,5 @@ app.get('/health', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`[app] servidor corriendo en puerto ${PORT}`)
+  console.log(`[app] orígenes CORS permitidos: ${allowedOrigins.join(', ')}`)
 })
