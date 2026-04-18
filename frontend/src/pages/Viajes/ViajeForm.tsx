@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '../../components/Button'
 import { FormField, inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
-import type { Viaje, CreateViajeDTO, Cliente, Fletero } from '../../types'
+import type { Viaje, CreateViajeDTO, Cliente, Fletero, EstadoFactura } from '../../types'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -44,7 +44,6 @@ const emptyForm: FormState = {
   destinatario: '',
 }
 
-// Convierte un viaje existente a estado de formulario
 function viajeToForm(v: Viaje): FormState {
   return {
     fecha:         v.fecha,
@@ -57,6 +56,13 @@ function viajeToForm(v: Viaje): FormState {
   }
 }
 
+// Mensaje según el estado de una factura (null = sin factura asociada, no debería pasar en edición real)
+function mensajeBloqueo(estado: EstadoFactura | null): string | null {
+  if (estado === 'facturada') return 'Factura emitida — revertí desde el módulo de Facturas para editar.'
+  if (estado === 'pagada')    return 'Factura cobrada — estos campos quedan congelados.'
+  return null
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: ViajeFormProps) {
@@ -65,14 +71,19 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // En modo edición, campos bloqueados — ver decisión 5.B y bloqueo de montos
-  const lockedHelpText = 'Para modificar este campo, eliminá el viaje y volvé a cargarlo. Para corregir montos, primero revertí las facturas asociadas desde el módulo de Facturas.'
+  // Flags de edición condicional según el estado de cada factura
+  // En modo creación, todo editable. En edición, depende del estado de cada factura.
+  const puedeEditarCobranza    = !isEdit || viaje!.estadoFacturaCobranza    === 'sin_facturar'
+  const puedeEditarPagoFletero = !isEdit || viaje!.estadoFacturaPagoFletero === 'sin_facturar'
+
+  const mensajeCobranza    = isEdit ? mensajeBloqueo(viaje!.estadoFacturaCobranza)    : null
+  const mensajePagoFletero = isEdit ? mensajeBloqueo(viaje!.estadoFacturaPagoFletero) : null
 
   const handleSubmit = async () => {
     if (!form.fecha) { setFormError('La fecha es requerida'); return }
 
     if (!isEdit) {
-      // Validaciones que solo aplican al crear (en edición están bloqueados)
+      // Validaciones que solo aplican al crear (en edición pueden estar bloqueados)
       if (!form.clienteId)                                      { setFormError('Seleccioná un cliente');         return }
       if (!form.valorCliente || Number(form.valorCliente) <= 0) { setFormError('Ingresá el valor del viaje');    return }
       if (!form.fleteroId)                                      { setFormError('Seleccioná un fletero');         return }
@@ -83,12 +94,25 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
     setFormError(null)
     try {
       if (isEdit) {
-        // En edición solo mandamos los campos que el usuario puede tocar
-        await onSubmit({
-          fecha: form.fecha,
-          numeroRemito: form.numeroRemito || null,
-          destinatario: form.destinatario || null,
-        })
+        // Solo mando los campos que el usuario efectivamente puede editar.
+        // Construimos el dto incrementalmente.
+        const dto: Partial<CreateViajeDTO> = {
+          fecha:         form.fecha,
+          numeroRemito:  form.numeroRemito || null,
+          destinatario:  form.destinatario || null,
+        }
+
+        if (puedeEditarCobranza) {
+          dto.clienteId    = Number(form.clienteId)
+          dto.valorCliente = Number(form.valorCliente)
+        }
+
+        if (puedeEditarPagoFletero) {
+          dto.fleteroId    = Number(form.fleteroId)
+          dto.costoFletero = Number(form.costoFletero)
+        }
+
+        await onSubmit(dto)
       } else {
         await onSubmit({
           fecha:         form.fecha,
@@ -111,13 +135,13 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
     ? Number(form.valorCliente) - Number(form.costoFletero)
     : null
 
-  // Estilo para inputs/selects bloqueados
+  // Estilos
   const lockedInputStyle = { ...inputStyle, background: theme.colors.surfaceHover, color: theme.colors.textMuted, cursor: 'not-allowed' }
 
-  // Texto de ayuda chico para campos bloqueados
-  const HelpText = () => (
+  // Componente local para mensajes informativos de bloqueo
+  const InfoMessage = ({ text }: { text: string }) => (
     <div style={{ fontFamily: theme.font.family, fontSize: theme.font.size.xs, color: theme.colors.textMuted, marginTop: '4px', lineHeight: 1.4 }}>
-      {lockedHelpText}
+      {text}
     </div>
   )
 
@@ -128,13 +152,14 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
         <input style={inputStyle} type="date" value={form.fecha} onChange={e => setForm(p => ({ ...p, fecha: e.target.value }))} />
       </FormField>
 
+      {/* ─── Bloque cobranza (cliente + valor) ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <FormField label="Cliente" required>
           <select
-            style={isEdit ? lockedInputStyle : { ...inputStyle, cursor: 'pointer' }}
+            style={!puedeEditarCobranza ? lockedInputStyle : { ...inputStyle, cursor: 'pointer' }}
             value={form.clienteId}
             onChange={e => setForm(p => ({ ...p, clienteId: e.target.value }))}
-            disabled={isEdit}
+            disabled={!puedeEditarCobranza}
           >
             <option value="">Seleccionar...</option>
             {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
@@ -142,24 +167,26 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
         </FormField>
         <FormField label="Valor del viaje" required>
           <input
-            style={isEdit ? lockedInputStyle : inputStyle}
+            style={!puedeEditarCobranza ? lockedInputStyle : inputStyle}
             type="number" min={0} placeholder="0"
             value={form.valorCliente}
             onChange={e => setForm(p => ({ ...p, valorCliente: e.target.value }))}
-            disabled={isEdit}
+            disabled={!puedeEditarCobranza}
           />
         </FormField>
       </div>
+      {mensajeCobranza && <InfoMessage text={mensajeCobranza} />}
 
       <div style={{ borderTop: `1px solid ${theme.colors.borderLight}` }} />
 
+      {/* ─── Bloque pago_fletero (fletero + costo) ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <FormField label="Fletero" required>
           <select
-            style={isEdit ? lockedInputStyle : { ...inputStyle, cursor: 'pointer' }}
+            style={!puedeEditarPagoFletero ? lockedInputStyle : { ...inputStyle, cursor: 'pointer' }}
             value={form.fleteroId}
             onChange={e => setForm(p => ({ ...p, fleteroId: e.target.value }))}
-            disabled={isEdit}
+            disabled={!puedeEditarPagoFletero}
           >
             <option value="">Seleccionar...</option>
             {fleteros.map(f => <option key={f.id} value={f.id}>{f.nombre}</option>)}
@@ -167,19 +194,19 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
         </FormField>
         <FormField label="Costo del fletero" required>
           <input
-            style={isEdit ? lockedInputStyle : inputStyle}
+            style={!puedeEditarPagoFletero ? lockedInputStyle : inputStyle}
             type="number" min={0} placeholder="0"
             value={form.costoFletero}
             onChange={e => setForm(p => ({ ...p, costoFletero: e.target.value }))}
-            disabled={isEdit}
+            disabled={!puedeEditarPagoFletero}
           />
         </FormField>
       </div>
-
-      {isEdit && <HelpText />}
+      {mensajePagoFletero && <InfoMessage text={mensajePagoFletero} />}
 
       <div style={{ borderTop: `1px solid ${theme.colors.borderLight}` }} />
 
+      {/* ─── Bloque siempre editable (datos administrativos) ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <FormField label="N° Remito">
           <input

@@ -1,3 +1,5 @@
+// backend/src/repositories/facturas.repository.ts
+
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
 import { Factura, CreateFacturaDTO } from '../types';
@@ -149,6 +151,35 @@ export async function revertir(id: number): Promise<Factura | null> {
   console.log(`[facturas] revertir — completado | id: ${id}`);
   return mapRow(result.rows[0]);
 }
+
+/**
+ * Actualiza una factura desde el contexto de una edición de viaje.
+ * Solo afecta facturas en estado 'sin_facturar' (validación atómica a nivel DB).
+ * Pensado para usarse exclusivamente dentro de una transacción.
+ *
+ * @returns la factura actualizada, o null si la factura no existe o no estaba en sin_facturar.
+ */
+export async function actualizarDesdeViaje(
+  facturaId: number,
+  datos: { monto?: number; clienteId?: number | null; fleteroId?: number | null },
+  client: PoolClient
+): Promise<Factura | null> {
+  console.log(`[facturas] actualizarDesdeViaje — request recibido | id: ${facturaId}`);
+  const result = await client.query(
+    `UPDATE facturas SET
+       monto       = COALESCE($1, monto),
+       cliente_id  = COALESCE($2, cliente_id),
+       fletero_id  = COALESCE($3, fletero_id)
+     WHERE id = $4 AND estado = 'sin_facturar'
+     RETURNING ${SELECT}`,
+    [datos.monto ?? null, datos.clienteId ?? null, datos.fleteroId ?? null, facturaId]
+  );
+  if (result.rows.length === 0) return null;
+  console.log(`[facturas] actualizarDesdeViaje — completado | id: ${facturaId}`);
+  return mapRow(result.rows[0]);
+}
+
+
 
 
 /**

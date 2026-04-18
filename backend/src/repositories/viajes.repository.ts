@@ -20,7 +20,7 @@ const SELECT_CON_FACTURAS = `
   fp.vencimiento AS vencimiento_pago_fletero
 `;
 
-// reemplazá mapRow
+
 function mapRow(row: Record<string, unknown>): Viaje {
   return {
     id:                          Number(row.id),
@@ -46,8 +46,6 @@ function mapRow(row: Record<string, unknown>): Viaje {
 }
 
 export const viajesRepository = {
-// reemplazar getAll y getById
-
   async getAll(): Promise<Viaje[]> {
     console.log('[viajes] getAll — request recibido');
     const result = await pool.query(`
@@ -75,36 +73,37 @@ export const viajesRepository = {
   },
 
   async crear(datos: CreateViajeDTO, client?: PoolClient): Promise<Viaje> {
-      console.log(`[viajes] crear — request recibido | cliente_id: ${datos.clienteId}, fletero_id: ${datos.fleteroId}`);
-      const executor = client ?? pool;
-      const result = await executor.query(
-        `INSERT INTO viajes (fecha, cliente_id, valor_cliente, fletero_id, costo_fletero, numero_remito, destinatario)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING ${SELECT}`,
-        [datos.fecha, datos.clienteId, datos.valorCliente, datos.fleteroId, datos.costoFletero, datos.numeroRemito ?? null, datos.destinatario ?? null]
-      );
-      console.log(`[viajes] crear — completado | id: ${result.rows[0].id}`);
-      return mapRow(result.rows[0]);
-    },
+    console.log(`[viajes] crear — request recibido | cliente_id: ${datos.clienteId}, fletero_id: ${datos.fleteroId}`);
+    const executor = client ?? pool;
+    const result = await executor.query(
+      `INSERT INTO viajes (fecha, cliente_id, valor_cliente, fletero_id, costo_fletero, numero_remito, destinatario)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING ${SELECT}`,
+      [datos.fecha, datos.clienteId, datos.valorCliente, datos.fleteroId, datos.costoFletero, datos.numeroRemito ?? null, datos.destinatario ?? null]
+    );
+    console.log(`[viajes] crear — completado | id: ${result.rows[0].id}`);
+    return mapRow(result.rows[0]);
+  },
 
-  async actualizar(id: number, datos: Partial<CreateViajeDTO>): Promise<Viaje | null> {
-      console.log(`[viajes] actualizar — request recibido | id: ${id}`);
-      const result = await pool.query(
-        `UPDATE viajes SET
-          fecha          = COALESCE($1, fecha),
-          cliente_id     = COALESCE($2, cliente_id),
-          valor_cliente  = COALESCE($3, valor_cliente),
-          fletero_id     = COALESCE($4, fletero_id),
-          costo_fletero  = COALESCE($5, costo_fletero),
-          numero_remito  = COALESCE($6, numero_remito),
-          destinatario   = COALESCE($7, destinatario)
-        WHERE id = $8
-        RETURNING ${SELECT}`,
-        [datos.fecha, datos.clienteId, datos.valorCliente, datos.fleteroId, datos.costoFletero, datos.numeroRemito, datos.destinatario, id]
-      );
-      console.log(`[viajes] actualizar — completado | encontrado: ${result.rows.length > 0}`);
-      return result.rows[0] ? mapRow(result.rows[0]) : null;
-    },
+  async actualizar(id: number, datos: Partial<CreateViajeDTO>, client?: PoolClient): Promise<Viaje | null> {
+    console.log(`[viajes] actualizar — request recibido | id: ${id}`);
+    const executor = client ?? pool;
+    const result = await executor.query(
+      `UPDATE viajes SET
+        fecha          = COALESCE($1, fecha),
+        cliente_id     = COALESCE($2, cliente_id),
+        valor_cliente  = COALESCE($3, valor_cliente),
+        fletero_id     = COALESCE($4, fletero_id),
+        costo_fletero  = COALESCE($5, costo_fletero),
+        numero_remito  = COALESCE($6, numero_remito),
+        destinatario   = COALESCE($7, destinatario)
+      WHERE id = $8
+      RETURNING ${SELECT}`,
+      [datos.fecha, datos.clienteId, datos.valorCliente, datos.fleteroId, datos.costoFletero, datos.numeroRemito, datos.destinatario, id]
+    );
+    console.log(`[viajes] actualizar — completado | encontrado: ${result.rows.length > 0}`);
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  },
 
   async eliminar(id: number, client?: PoolClient): Promise<Viaje | null> {
     console.log(`[viajes] eliminar — request recibido | id: ${id}`);
