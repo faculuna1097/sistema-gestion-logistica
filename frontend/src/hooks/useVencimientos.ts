@@ -10,7 +10,6 @@ export interface VencimientoRow {
   numero: string | null;
   monto: number;
   vencimiento: string;
-  fechaViaje: string | null;
 }
 
 export interface SemanaGroup {

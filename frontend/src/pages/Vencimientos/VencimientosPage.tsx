@@ -237,7 +237,7 @@ export default function VencimientosPage() {
       {error && <div style={{ color: theme.colors.danger }}>{error}</div>}
 
       {!loading && !error && (
-        <div style={{ display: 'flex', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           <TablaVencimientos titulo="Cobranza" vencidas={vencidasCobranza} semanas={semanasCobranza} total={totalCobranza} />
           <TablaVencimientos titulo="Pagos" vencidas={vencidasPagos} semanas={semanasPagos} total={totalPagos} />
         </div>
