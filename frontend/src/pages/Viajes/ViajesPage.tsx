@@ -66,6 +66,7 @@ function getRowCellBg(
   return `linear-gradient(${overlay}, ${overlay}), ${baseColor === 'transparent' ? 'white' : baseColor}`
 }
 
+/*
 function EstadoDot({ estado, vencimiento }: { estado: EstadoFactura | null; vencimiento: string | null }) {
   const { color } = getEstadoVisual(estado, vencimiento)
   return (
@@ -78,7 +79,7 @@ function EstadoDot({ estado, vencimiento }: { estado: EstadoFactura | null; venc
     }} />
   )
 }
-
+*/
 // ─── Leyenda ──────────────────────────────────────────────────────────────────
 
 // Cada entrada fuerza un escenario específico de getEstadoVisual para obtener
@@ -94,14 +95,13 @@ const LEYENDA: Array<{ estado: EstadoFactura; vencimiento?: string; label: strin
 // ─── Columnas con IDs estables ────────────────────────────────────────────────
 
 const COLUMNAS = [
+  { id: 'num_viaje',   label: '#',        align: 'left'   },
   { id: 'fecha',       label: 'Fecha',    align: 'left'   },
   { id: 'cliente',     label: 'Cliente',  align: 'left'   },
   { id: 'num_cob',     label: 'N° Cob.', align: 'left'   },
-  { id: 'estado_cob',  label: 'Estado',   align: 'center' },
   { id: 'valor',       label: 'Valor',    align: 'right'  },
   { id: 'fletero',     label: 'Fletero',  align: 'left'   },
   { id: 'num_flet',    label: 'N° Flet.', align: 'left'  },
-  { id: 'estado_flet', label: 'Estado',   align: 'center' },
   { id: 'costo',       label: 'Costo',    align: 'right'  },
   { id: 'ganancia',    label: 'Ganancia', align: 'right'  },
   { id: 'acciones',    label: '',         align: 'right'  },
@@ -264,6 +264,9 @@ export function ViajesPage() {
                     borderTop: isHovered ? `1px solid ${borderColor}` : 'none',
                   }}
                 >
+                  <td style={{ background: cobBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+                    {v.id}
+                  </td>
                   <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, whiteSpace: 'nowrap' }}>
                     {formatFecha(v.fecha)}
                   </td>
@@ -273,9 +276,6 @@ export function ViajesPage() {
                   <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
                     {v.numeroFacturaCobranza ?? '—'}
                   </td>
-                  <td style={{ background: cobBg,  padding: '14px 16px', textAlign: 'center' }}>
-                    <EstadoDot estado={v.estadoFacturaCobranza} vencimiento={v.vencimientoCobranza} />
-                  </td>
                   <td style={{ background: cobBg,  padding: '14px 16px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(v.valorCliente)}
                   </td>
@@ -284,9 +284,6 @@ export function ViajesPage() {
                   </td>
                   <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
                     {v.numeroFacturaPagoFletero ?? '—'}
-                  </td>
-                  <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'center' }}>
-                    <EstadoDot estado={v.estadoFacturaPagoFletero} vencimiento={v.vencimientoPagoFletero} />
                   </td>
                   <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
                     {formatMoney(v.costoFletero)}
