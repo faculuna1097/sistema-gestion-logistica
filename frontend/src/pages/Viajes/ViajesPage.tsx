@@ -1,6 +1,6 @@
 // frontend/src/pages/Viajes/ViajesPage.tsx
 
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useViajes } from '../../hooks/useViajes'
 import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
@@ -34,6 +34,40 @@ function formatMoney(n: number) {
     style: 'currency', currency: 'ARS', maximumFractionDigits: 0,
   }).format(n)
 }
+
+// ─── Agrupamiento por semana ──────────────────────────────────────────────────
+
+// Divide un array de viajes en semanas fijas según el día del mes.
+// Mismo criterio que VencimientosPage: 1-7, 8-14, 15-21, 22-fin.
+// Se asume que todos los viajes pertenecen al mismo mes (se llama solo cuando
+// hay un mes específico seleccionado en el filtro).
+// Omite semanas sin viajes para no generar divisorias vacías.
+function agruparViajesPorSemana(viajes: Viaje[]): Array<{ label: string; viajes: Viaje[] }> {
+  const semanas = [
+    { label: 'Semana 1 (1-7)',   desde: 1,  hasta: 7,  viajes: [] as Viaje[] },
+    { label: 'Semana 2 (8-14)',  desde: 8,  hasta: 14, viajes: [] as Viaje[] },
+    { label: 'Semana 3 (15-21)', desde: 15, hasta: 21, viajes: [] as Viaje[] },
+    { label: 'Semana 4 (22-fin)', desde: 22, hasta: 31, viajes: [] as Viaje[] },
+  ]
+
+  for (const v of viajes) {
+    // v.fecha viene como 'YYYY-MM-DD'. Parseamos el día directo del string
+    // para evitar el bug de timezone al crear un Date.
+    const dia = Number(v.fecha.slice(8, 10))
+    const semana = semanas.find(s => dia >= s.desde && dia <= s.hasta)
+    if (semana) semana.viajes.push(v)
+  }
+
+  return semanas
+    .filter(s => s.viajes.length > 0)
+    .map(({ label, viajes }) => ({ label, viajes }))
+}
+
+// Estilo de la fila divisoria entre semanas.
+// ← COLOR DIVISORIA: cambiar acá el fondo y el color del texto si no te gusta.
+const DIVISORIA_BG = '#fef9ec'       // ← fondo de la fila
+const DIVISORIA_COLOR = '#92660a'    // ← color del texto
+
 
 // ─── Estado visual ────────────────────────────────────────────────────────────
 
@@ -127,6 +161,7 @@ export function ViajesPage() {
 
   const [hoveredRowId, setHoveredRowId] = useState<number | null>(null)
   const [mesFiltro, setMesFiltro] = useState(() => new Date().toISOString().slice(0, 7))
+  const [orden, setOrden] = useState<'asc' | 'desc'>('desc')  // ← NUEVO
 
   const clienteMap = Object.fromEntries(clientes.map(c => [c.id, c.nombre]))
   const fleteroMap = Object.fromEntries(fleteros.map(f => [f.id, f.nombre]))
@@ -136,9 +171,21 @@ export function ViajesPage() {
     return meses
   }, [viajes])
 
-  const viajesFiltrados = mesFiltro === 'todos'
-    ? viajes
-    : viajes.filter(v => v.fecha.startsWith(mesFiltro))
+  const viajesFiltrados = useMemo(() => {
+    const filtrados = mesFiltro === 'todos'
+      ? viajes
+      : viajes.filter(v => v.fecha.startsWith(mesFiltro))
+
+    // Ordenamiento por fecha. Si hay empate (misma fecha), desempatamos por id
+    // para que el orden sea estable y los viajes cargados más recientemente
+    // aparezcan primero dentro del mismo día.
+    const sorted = [...filtrados].sort((a, b) => {
+      const cmpFecha = a.fecha.localeCompare(b.fecha)
+      if (cmpFecha !== 0) return orden === 'asc' ? cmpFecha : -cmpFecha
+      return orden === 'asc' ? a.id - b.id : b.id - a.id
+    })
+    return sorted
+  }, [viajes, mesFiltro, orden])
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
 
@@ -190,7 +237,7 @@ export function ViajesPage() {
           <Button onClick={() => setCreateOpen(true)}>+ Nuevo viaje</Button>
         </div>
 
-        {/* Centro: selector de mes */}
+        {/* Centro: selector de mes + botón de orden */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <select
             value={mesFiltro}
@@ -206,6 +253,25 @@ export function ViajesPage() {
                 )
               })}
           </select>
+
+          <button
+            onClick={() => setOrden(prev => prev === 'desc' ? 'asc' : 'desc')}
+            title={orden === 'desc' ? 'Orden: más nuevo primero' : 'Orden: más viejo primero'}
+            style={{
+              ...inputStyle,
+              cursor: 'pointer',
+              padding: '8px 12px',
+              minWidth: 'auto',
+              fontFamily: theme.font.family,
+              fontSize: theme.font.size.md,
+              fontWeight: theme.font.weight.semibold,
+              color: theme.colors.textSecondary,
+              background: theme.colors.surface,
+              lineHeight: 1,
+            }}
+          >
+            {orden === 'desc' ? '↓' : '↑'}
+          </button>
         </div>
 
         {/* Derecha: leyenda de estados */}
@@ -246,68 +312,112 @@ export function ViajesPage() {
               <tr><td colSpan={COLUMNAS.length} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>Cargando...</td></tr>
             ) : viajesFiltrados.length === 0 ? (
               <tr><td colSpan={COLUMNAS.length} style={{ padding: '40px', textAlign: 'center', color: theme.colors.textMuted, fontFamily: theme.font.family, fontSize: theme.font.size.sm }}>No hay viajes cargados</td></tr>
-            ) : viajesFiltrados.map((v, i) => {
-              const ganancia   = v.valorCliente - v.costoFletero
-              const isHovered  = hoveredRowId === v.id
-              const cobBg      = getRowCellBg(v.estadoFacturaCobranza,    v.vencimientoCobranza,    isHovered)
-              const fletBg     = getRowCellBg(v.estadoFacturaPagoFletero, v.vencimientoPagoFletero, isHovered)
-              const borderColor = isHovered ? theme.colors.border : theme.colors.borderLight
-              return (
-                <tr
-                  key={v.id}
-                  onClick={() => setDetailTarget(v)}
-                  onMouseEnter={() => setHoveredRowId(v.id)}
-                  onMouseLeave={() => setHoveredRowId(null)}
-                  style={{
-                    cursor: 'pointer',
-                    borderBottom: i < viajesFiltrados.length - 1 ? `1px solid ${borderColor}` : 'none',
-                    borderTop: isHovered ? `1px solid ${borderColor}` : 'none',
-                  }}
-                >
-                  <td style={{ background: cobBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted, fontVariantNumeric: 'tabular-nums' }}>
-                    {v.id}
-                  </td>
-                  <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, whiteSpace: 'nowrap' }}>
-                    {formatFecha(v.fecha)}
-                  </td>
-                  <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.base, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
-                    {resolveClienteNombre(v)}
-                  </td>
-                  <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
-                    {v.numeroFacturaCobranza ?? '—'}
-                  </td>
-                  <td style={{ background: cobBg,  padding: '14px 16px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
-                    {formatMoney(v.valorCliente)}
-                  </td>
-                  <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.base, color: theme.colors.textSecondary }}>
-                    {resolveFleteroNombre(v)}
-                  </td>
-                  <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
-                    {v.numeroFacturaPagoFletero ?? '—'}
-                  </td>
-                  <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
-                    {formatMoney(v.costoFletero)}
-                  </td>
-                  <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right' }}>
-                    <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, fontWeight: theme.font.weight.semibold, color: ganancia >= 0 ? theme.colors.primary : theme.colors.danger, fontVariantNumeric: 'tabular-nums' }}>
-                      {formatMoney(ganancia)}
-                    </span>
-                  </td>
-                  <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right' }}>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={(e) => {
-                        e.stopPropagation()  // evita que se dispare el onClick de la fila
-                        setDeleteTarget(v)
+            ) : (() => {
+            // Decisión A: solo agrupamos por semana cuando hay un mes específico filtrado.
+            // Con "Todos los meses" las semanas se mezclarían entre meses y no tiene sentido.
+            const agrupar = mesFiltro !== 'todos'
+            const gruposBase = agrupar
+              ? agruparViajesPorSemana(viajesFiltrados)
+              : [{ label: '', viajes: viajesFiltrados }]
+
+            // Cuando el orden es descendente, invertimos también el orden de los grupos
+            // para que Semana 4 aparezca antes que Semana 1. Si no, los viajes dentro de
+            // cada semana estarían desc pero las semanas entre sí quedarían asc → incoherente.
+            const grupos = orden === 'desc' && agrupar
+              ? [...gruposBase].reverse()
+              : gruposBase
+            // Aplanamos para poder saber si una fila es la última de toda la tabla
+            // y así no dibujarle borde inferior (comportamiento original).
+            const totalViajes = viajesFiltrados.length
+            let viajesRenderizados = 0
+
+            return grupos.map((grupo, grupoIdx) => (
+              <React.Fragment key={`grupo-${grupoIdx}`}>
+                {agrupar && (
+                  <tr>
+                    <td
+                      colSpan={COLUMNAS.length}
+                      style={{
+                        background: DIVISORIA_BG,              // ← COLOR DIVISORIA (fondo)
+                        color: DIVISORIA_COLOR,                // ← COLOR DIVISORIA (texto)
+                        padding: '10px 16px',
+                        fontFamily: theme.font.family,
+                        fontSize: theme.font.size.xs,
+                        fontWeight: theme.font.weight.semibold,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
                       }}
                     >
-                      ×
-                    </Button>
-                  </td>
-                </tr>
-              )
-            })}
+                      {grupo.label}
+                    </td>
+                  </tr>
+                )}
+                {grupo.viajes.map(v => {
+                  const idx = viajesRenderizados++
+                  const ganancia    = v.valorCliente - v.costoFletero
+                  const isHovered   = hoveredRowId === v.id
+                  const cobBg       = getRowCellBg(v.estadoFacturaCobranza,    v.vencimientoCobranza,    isHovered)
+                  const fletBg      = getRowCellBg(v.estadoFacturaPagoFletero, v.vencimientoPagoFletero, isHovered)
+                  const borderColor = isHovered ? theme.colors.border : theme.colors.borderLight
+                  return (
+                    <tr
+                      key={v.id}
+                      onClick={() => setDetailTarget(v)}
+                      onMouseEnter={() => setHoveredRowId(v.id)}
+                      onMouseLeave={() => setHoveredRowId(null)}
+                      style={{
+                        cursor: 'pointer',
+                        borderBottom: idx < totalViajes - 1 ? `1px solid ${borderColor}` : 'none',
+                        borderTop: isHovered ? `1px solid ${borderColor}` : 'none',
+                      }}
+                    >
+                      <td style={{ background: cobBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+                        {v.id}
+                      </td>
+                      <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, whiteSpace: 'nowrap' }}>
+                        {formatFecha(v.fecha)}
+                      </td>
+                      <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.base, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
+                        {resolveClienteNombre(v)}
+                      </td>
+                      <td style={{ background: cobBg,  padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
+                        {v.numeroFacturaCobranza ?? '—'}
+                      </td>
+                      <td style={{ background: cobBg,  padding: '14px 16px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>
+                        {formatMoney(v.valorCliente)}
+                      </td>
+                      <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.base, color: theme.colors.textSecondary }}>
+                        {resolveFleteroNombre(v)}
+                      </td>
+                      <td style={{ background: fletBg, padding: '14px 16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textMuted }}>
+                        {v.numeroFacturaPagoFletero ?? '—'}
+                      </td>
+                      <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary, fontVariantNumeric: 'tabular-nums' }}>
+                        {formatMoney(v.costoFletero)}
+                      </td>
+                      <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right' }}>
+                        <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.sm, fontWeight: theme.font.weight.semibold, color: ganancia >= 0 ? theme.colors.primary : theme.colors.danger, fontVariantNumeric: 'tabular-nums' }}>
+                          {formatMoney(ganancia)}
+                        </span>
+                      </td>
+                      <td style={{ background: fletBg, padding: '14px 16px', textAlign: 'right' }}>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteTarget(v)
+                          }}
+                        >
+                          ×
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </React.Fragment>
+            ))
+            })()}
           </tbody>
         </table>
       </div>
