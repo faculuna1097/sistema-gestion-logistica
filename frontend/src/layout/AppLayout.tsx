@@ -1,13 +1,16 @@
+// frontend/src/layout/AppLayout.tsx 
+
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { theme } from '../theme'
 
 const navItems = [
-  { path: '/viajes',   label: 'Viajes',   icon: '🚛' },
-  { path: '/facturas', label: 'Facturas', icon: '🧾' },
+  { path: '/viajes',       label: 'Viajes',       icon: '🚛' },
+  { path: '/informes',     label: 'Informes',     icon: '📄' },
+  { path: '/facturas',     label: 'Facturas',     icon: '🧾' },
   { path: '/vencimientos', label: 'Vencimientos', icon: '📅' },
-  { path: '/clientes', label: 'Clientes', icon: '🏢' },
-  { path: '/fleteros', label: 'Fleteros', icon: '👤' },
+  { path: '/clientes',     label: 'Clientes',     icon: '🏢' },
+  { path: '/fleteros',     label: 'Fleteros',     icon: '👤' },
 ]
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

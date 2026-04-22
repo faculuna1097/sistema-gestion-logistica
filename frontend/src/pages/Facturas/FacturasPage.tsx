@@ -39,6 +39,9 @@ const thStyle: React.CSSProperties = {
   background: theme.colors.surfaceHover,
   whiteSpace: 'nowrap',
   textAlign: 'left',
+  position: 'sticky',
+  top: 0,
+  zIndex: 1,
 }
 
 const tdBaseStyle: React.CSSProperties = {
