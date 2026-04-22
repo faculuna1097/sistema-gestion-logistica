@@ -9,6 +9,7 @@ import fleterosRouter from './routes/fleteros.routes'
 import viajesRouter from './routes/viajes.routes'
 import facturasRouter from './routes/facturas.routes'
 import vencimientosRouter from './routes/vencimientos.routes'
+import informesRouter from './routes/informes.routes'
 
 dotenv.config()
 
@@ -52,6 +53,7 @@ app.use('/fleteros', fleterosRouter)
 app.use('/viajes', viajesRouter)
 app.use('/facturas', facturasRouter)
 app.use('/vencimientos', vencimientosRouter)
+app.use('/informes', informesRouter)
 
 app.get('/health', async (req, res) => {
   try {

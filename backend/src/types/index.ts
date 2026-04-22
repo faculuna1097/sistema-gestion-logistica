@@ -3,6 +3,8 @@
 // reemplazá el bloque de FACTURAS — tipos de estado
 export type TipoFactura = 'cobranza' | 'pago_fletero' | 'pago_servicio'
 export type EstadoFactura = 'sin_facturar' | 'facturada' | 'pagada'
+export type TipoInforme = 'cliente' | 'fletero';
+
 
 // CLIENTES
 export interface Cliente {
@@ -94,4 +96,42 @@ export interface CreateFacturaDTO {
   numero: string | null
   fechaEmision: string | null
   vencimiento?: string
+}
+
+// FILTROS DE VIAJES
+export interface ViajeFilters {
+  clienteId?: number
+  fleteroId?: number
+  desde?: string   // formato YYYY-MM-DD
+  hasta?: string   // formato YYYY-MM-DD
+}
+
+export interface Informe {
+  id: number;
+  codigo: string;              // "INF-2026-000042"
+  anio: number;
+  correlativo: number;
+  tipo: TipoInforme;
+  clienteId: number | null;
+  fleteroId: number | null;
+  rangoDesde: string;          // YYYY-MM-DD
+  rangoHasta: string;          // YYYY-MM-DD
+  createdAt: string;           // ISO string
+  viajeIds: number[];
+}
+
+export interface CreateInformeDTO {
+  tipo: TipoInforme;
+  clienteId: number | null;
+  fleteroId: number | null;
+  rangoDesde: string;
+  rangoHasta: string;
+  viajeIds: number[];
+}
+
+export interface InformeFilters {
+  tipo?: TipoInforme;
+  clienteId?: number;
+  fleteroId?: number;
+  anio?: number;
 }
