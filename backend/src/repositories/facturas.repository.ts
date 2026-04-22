@@ -28,13 +28,14 @@ function mapRow(row: Record<string, unknown>): Factura {
     vencimiento: row.vencimiento
       ? new Date(row.vencimiento as string).toISOString().slice(0, 10)
       : null,
-    estado: row.estado as Factura['estado'],
+    estado:     row.estado as Factura['estado'],
+    incluyeIva: row.incluye_iva as boolean,
   };
 }
 
 const SELECT = `
   id, tipo, cliente_id, fletero_id, viaje_id, monto, descripcion,
-  numero, fecha_emision, vencimiento, estado
+  numero, fecha_emision, vencimiento, estado, incluye_iva
 `;
 
 export async function getAll(filtros: FiltrosFactura): Promise<Factura[]> {
@@ -207,27 +208,65 @@ export async function existeNumero(numero: string): Promise<boolean> {
 
 export async function facturarLote(
   ids: number[],
-  datos: { numero: string; fechaEmision: string; vencimiento: string }
+  datos: {
+    numero: string;
+    fechaEmision: string;
+    vencimiento: string;
+    ajustesMonto?: { id: number; monto: number }[];
+    incluyeIva?: boolean;
+  }
 ): Promise<Factura[]> {
-  console.log(`[facturas] facturarLote — request recibido | ids: ${ids.length}`);
+  console.log(`[facturas] facturarLote — request recibido | ids: ${ids.length}, ajustes: ${datos.ajustesMonto?.length ?? 0}, incluyeIva: ${datos.incluyeIva ?? 'sin cambio'}`);
   const client: PoolClient = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // 1. Aplicar ajustes de monto (si los hay), solo sobre facturas sin_facturar.
+    //    Cada ajuste es un UPDATE independiente. Si algún ajuste apunta a una
+    //    factura que no está en sin_facturar, el UPDATE no afecta filas y se
+    //    descarta silenciosamente — el chequeo fuerte viene en el paso 2.
+    if (datos.ajustesMonto && datos.ajustesMonto.length > 0) {
+      for (const ajuste of datos.ajustesMonto) {
+        await client.query(
+          `UPDATE facturas SET monto = $1
+           WHERE id = $2 AND estado = 'sin_facturar'`,
+          [ajuste.monto, ajuste.id]
+        );
+      }
+    }
+
+    // 2. Transición sin_facturar → facturada para todos los ids.
+    //    incluye_iva se actualiza solo si viene en el DTO (COALESCE).
     const result = await client.query(
       `UPDATE facturas SET
          estado        = 'facturada',
          numero        = $1,
          fecha_emision = $2,
-         vencimiento   = $3
-       WHERE estado = 'sin_facturar' AND id = ANY($4)
+         vencimiento   = $3,
+         incluye_iva   = COALESCE($4, incluye_iva)
+       WHERE estado = 'sin_facturar' AND id = ANY($5)
        RETURNING ${SELECT}`,
-      [datos.numero, datos.fechaEmision, datos.vencimiento, ids]
+      [datos.numero, datos.fechaEmision, datos.vencimiento, datos.incluyeIva ?? null, ids]
     );
+
+    // 3. Defensa contra race conditions: todos los ids tienen que haber sido
+    //    actualizados. Si alguno no estaba en sin_facturar (o no existía),
+    //    ROLLBACK completo y error.
+    if (result.rows.length !== ids.length) {
+      await client.query('ROLLBACK');
+      throw new Error(
+        `No se pudo facturar el lote: se esperaban ${ids.length} facturas en estado sin_facturar, se actualizaron ${result.rows.length}`
+      );
+    }
+
     await client.query('COMMIT');
     console.log(`[facturas] facturarLote — completado | actualizadas: ${result.rows.length}`);
     return result.rows.map(mapRow);
   } catch (err) {
-    await client.query('ROLLBACK');
+    // El ROLLBACK dentro del if de arriba ya se ejecutó si el error vino de ahí;
+    // este catch cubre cualquier otro error (falla de query, conexión, etc).
+    // Postgres ignora ROLLBACK sobre transacción ya terminada, así que es seguro llamarlo de nuevo.
+    try { await client.query('ROLLBACK'); } catch { /* ignore */ }
     throw err;
   } finally {
     client.release();

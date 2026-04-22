@@ -84,6 +84,7 @@ export interface Factura {
   fechaEmision: string | null
   vencimiento: string | null
   estado: EstadoFactura
+  incluyeIva: boolean
 }
 
 export interface CreateFacturaDTO {
@@ -134,4 +135,19 @@ export interface InformeFilters {
   clienteId?: number;
   fleteroId?: number;
   anio?: number;
+}
+
+// FACTURAR LOTE (PATCH /facturas/facturar-lote)
+export interface AjusteMontoFactura {
+  id: number
+  monto: number
+}
+
+export interface FacturarLoteDTO {
+  ids: number[]
+  numero: string
+  fechaEmision: string          // YYYY-MM-DD
+  vencimiento: string           // YYYY-MM-DD
+  ajustesMonto?: AjusteMontoFactura[]
+  incluyeIva?: boolean
 }

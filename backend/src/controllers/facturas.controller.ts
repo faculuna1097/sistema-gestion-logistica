@@ -1,10 +1,60 @@
-// src/controllers/facturas.controller.ts
+// backend/src/controllers/facturas.controller.ts
 
 import { Request, Response } from 'express';
 import * as facturasService from '../services/facturas.service';
 
 function isPgError(err: unknown): err is Error & { code: string } {
   return err instanceof Error && 'code' in err;
+}
+
+function validarFacturarLoteBody(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) {
+    return 'body debe ser un objeto';
+  }
+
+  const b = body as Record<string, unknown>;
+
+  // Campos requeridos del payload viejo.
+  if (!Array.isArray(b.ids) || b.ids.length === 0) {
+    return 'ids debe ser un array no vacío de números';
+  }
+  if (!b.ids.every((x) => typeof x === 'number' && Number.isInteger(x) && x > 0)) {
+    return 'ids debe contener solo enteros positivos';
+  }
+  if (typeof b.numero !== 'string' || b.numero.trim() === '') {
+    return 'numero debe ser un string no vacío';
+  }
+  if (typeof b.fechaEmision !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.fechaEmision)) {
+    return 'fechaEmision debe tener formato YYYY-MM-DD';
+  }
+  if (typeof b.vencimiento !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(b.vencimiento)) {
+    return 'vencimiento debe tener formato YYYY-MM-DD';
+  }
+
+  // Campos nuevos opcionales.
+  if (b.incluyeIva !== undefined && typeof b.incluyeIva !== 'boolean') {
+    return 'incluyeIva debe ser boolean';
+  }
+
+  if (b.ajustesMonto !== undefined) {
+    if (!Array.isArray(b.ajustesMonto)) {
+      return 'ajustesMonto debe ser un array';
+    }
+    for (const ajuste of b.ajustesMonto) {
+      if (typeof ajuste !== 'object' || ajuste === null) {
+        return 'cada ajuste en ajustesMonto debe ser un objeto';
+      }
+      const a = ajuste as Record<string, unknown>;
+      if (typeof a.id !== 'number' || !Number.isInteger(a.id) || a.id <= 0) {
+        return 'cada ajuste debe tener id como entero positivo';
+      }
+      if (typeof a.monto !== 'number' || !Number.isFinite(a.monto)) {
+        return 'cada ajuste debe tener monto como número finito';
+      }
+    }
+  }
+
+  return null;
 }
 
 export async function getAll(req: Request, res: Response) {
@@ -114,15 +164,32 @@ export async function revertir(req: Request, res: Response) {
 
 export async function facturarLote(req: Request, res: Response) {
   try {
-    const { ids, numero, fechaEmision, vencimiento } = req.body;
+    // --- Validación estructural del body ---
+    const errorValidacion = validarFacturarLoteBody(req.body);
+    if (errorValidacion) {
+      res.status(400).json({ error: `DTO inválido: ${errorValidacion}` });
+      return;
+    }
+
+    const { ids, numero, fechaEmision, vencimiento, ajustesMonto, incluyeIva } = req.body;
+
     console.log('[facturas] facturarLote — request recibido | ids:', ids.length);
-    const facturas = await facturasService.facturarLote(ids, { numero, fechaEmision, vencimiento });
+    const facturas = await facturasService.facturarLote(ids, {
+      numero,
+      fechaEmision,
+      vencimiento,
+      ajustesMonto,
+      incluyeIva,
+    });
     console.log('[facturas] facturarLote — completado | actualizadas:', facturas.length);
     res.json(facturas);
   } catch (err: unknown) {
     console.error('[facturas] Error en facturarLote:', err instanceof Error ? err.message : err);
     const message = err instanceof Error ? err.message : 'Error interno del servidor';
-    const status = message.includes('ya existe') || message.includes('Solo se actualizaron') ? 400 : 500;
+    let status = 500;
+    if (message.includes('ya existe')) status = 400;
+    else if (message.startsWith('DTO inválido')) status = 400;
+    else if (message.startsWith('No se pudo facturar el lote')) status = 409;
     res.status(status).json({ error: message });
   }
 }

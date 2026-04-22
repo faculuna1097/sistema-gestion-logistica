@@ -72,20 +72,53 @@ export async function revertir(id: number): Promise<Factura> {
 
 export async function facturarLote(
   ids: number[],
-  datos: { numero: string; fechaEmision: string; vencimiento: string }
+  datos: {
+    numero: string;
+    fechaEmision: string;
+    vencimiento: string;
+    ajustesMonto?: { id: number; monto: number }[];
+    incluyeIva?: boolean;
+  }
 ): Promise<Factura[]> {
+  // --- Validaciones semánticas de los campos nuevos ---
+
+  if (datos.incluyeIva !== undefined && typeof datos.incluyeIva !== 'boolean') {
+    throw new Error(`DTO inválido: incluyeIva debe ser boolean`);
+  }
+
+  if (datos.ajustesMonto !== undefined) {
+    const idsSet = new Set(ids);
+    const idsAjustadosVistos = new Set<number>();
+
+    for (const ajuste of datos.ajustesMonto) {
+      if (!idsSet.has(ajuste.id)) {
+        throw new Error(
+          `DTO inválido: ajuste de monto apunta a id ${ajuste.id} que no está en el lote`
+        );
+      }
+      if (idsAjustadosVistos.has(ajuste.id)) {
+        throw new Error(
+          `DTO inválido: ajuste de monto duplicado para id ${ajuste.id}`
+        );
+      }
+      if (typeof ajuste.monto !== 'number' || !Number.isFinite(ajuste.monto) || ajuste.monto <= 0) {
+        throw new Error(
+          `DTO inválido: monto de ajuste para id ${ajuste.id} debe ser un número positivo`
+        );
+      }
+      idsAjustadosVistos.add(ajuste.id);
+    }
+  }
+
+  // --- Chequeo de número duplicado (best-effort, sin constraint UNIQUE en DB) ---
+
   const existe = await facturasRepository.existeNumero(datos.numero);
   if (existe) {
     throw new Error(`El número de factura '${datos.numero}' ya existe`);
   }
 
-  const facturas = await facturasRepository.facturarLote(ids, datos);
-
-  if (facturas.length < ids.length) {
-    throw new Error(
-      `Solo se actualizaron ${facturas.length} de ${ids.length} facturas. Algunas no estaban en estado sin_facturar`
-    );
-  }
-
-  return facturas;
+  // --- Delegación al repository ---
+  // El repository valida atómicamente que los ids estén en sin_facturar
+  // y hace ROLLBACK si alguno no matchea. No necesita revalidación posterior.
+  return facturasRepository.facturarLote(ids, datos);
 }
