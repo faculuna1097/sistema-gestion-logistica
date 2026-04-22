@@ -1,4 +1,4 @@
-// frontend/src/theme.ts - Centralized theme configuration for the application
+// frontend/src/theme.ts 
 
 export const theme = {
   colors: {

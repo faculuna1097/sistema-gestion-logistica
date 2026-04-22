@@ -1,4 +1,4 @@
-// frontend/src/hooks/useInformes.ts
+// frontend/src/hooks/useInformeWizard.ts
 
 import { useState, useCallback } from 'react'
 import type { Viaje, ViajeFilters, TipoInforme, InformeData, InformeClienteFila, InformeFleteroFila } from '../types'

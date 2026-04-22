@@ -1,8 +1,11 @@
+// frontend/src/hooks/useFacturas.ts 
+
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 import type { Factura, FacturarDTO } from '../types'
 
-interface FacturasFiltros {
+// Exportada para que el wizard de NuevaFacturaModal pueda construir filtros tipados.
+export interface FacturasFiltros {
   tipo?: string
   estado?: string
   cliente_id?: number
@@ -53,16 +56,17 @@ export function useFacturas(filtros?: FacturasFiltros) {
     return actualizada
   }
 
+  // facturarLote ahora acepta ajustesMonto e incluyeIva vía FacturarDTO ampliado.
+  // El spread `{ ids, ...dto }` los manda al backend tal cual; si vienen undefined,
+  // el backend se comporta exactamente como antes (retrocompatibilidad).
   const facturarLote = async (ids: number[], dto: FacturarDTO) => {
-  const actualizadas = await api.patch<Factura[]>(`/facturas/facturar-lote`, { ids, ...dto })
-  setFacturas(prev => prev.map(f => {
-    const actualizada = actualizadas.find(a => a.id === f.id)
-    return actualizada ?? f
-  }))
-  return actualizadas
+    const actualizadas = await api.patch<Factura[]>(`/facturas/facturar-lote`, { ids, ...dto })
+    setFacturas(prev => prev.map(f => {
+      const actualizada = actualizadas.find(a => a.id === f.id)
+      return actualizada ?? f
+    }))
+    return actualizadas
+  }
+
+  return { facturas, loading, error, facturar, facturarLote, pagar, revertir, refetch: fetchFacturas }
 }
-
-
-return { facturas, loading, error, facturar, facturarLote, pagar, revertir, refetch: fetchFacturas }
-}
-

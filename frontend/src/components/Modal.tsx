@@ -1,3 +1,5 @@
+// frontend/src/components/Modal.tsx
+
 import React, { useEffect } from 'react'
 import { theme } from '../theme'
 

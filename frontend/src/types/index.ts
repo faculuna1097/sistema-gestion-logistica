@@ -73,18 +73,40 @@ export interface Factura {
   clienteId: number | null
   fleteroId: number | null
   viajeId: number | null
-  monto: number
+  monto: number                // monto NETO. Para total con IVA: monto * 1.21 si incluyeIva = true
   descripcion: string | null
   numero: string | null
   fechaEmision: string | null
   vencimiento: string | null
   estado: EstadoFactura
+  incluyeIva: boolean          // columna NOT NULL DEFAULT true en DB
 }
 
+// Ajuste opcional de monto al emitir un lote.
+// Permite editar el monto de una factura específica antes de la transición sin_facturar → facturada.
+// El `id` debe pertenecer al array `ids` del FacturarDTO. El backend valida esto.
+export interface AjusteMontoFactura {
+  id: number
+  monto: number
+}
+
+// FacturarDTO se usa para dos endpoints distintos:
+//   - PATCH /facturas/:id/facturar   (individual)
+//   - PATCH /facturas/facturar-lote  (lote, con ajustesMonto e incluyeIva opcionales)
+//
+// Los dos campos nuevos (ajustesMonto, incluyeIva) son opcionales y solo se usan
+// desde el wizard del rediseño. El endpoint individual los ignora — si en el futuro
+// hace falta soportar IVA desde un punto de entrada individual, se amplía el service
+// del backend (hoy solo facturar-lote los procesa).
+//
+// Nota de naming: en el backend este DTO se llama FacturarLoteDTO. La asimetría está
+// anotada como deuda técnica chica para un pase de unificación futuro.
 export interface FacturarDTO {
   numero: string
   fechaEmision: string
   vencimiento: string
+  ajustesMonto?: AjusteMontoFactura[]   // solo aplicable a facturar-lote
+  incluyeIva?: boolean                  // solo aplicable a facturar-lote; aplica a todo el lote
 }
 
 // FILTROS

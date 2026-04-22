@@ -4,12 +4,20 @@ import { useState, useMemo } from 'react'
 import { useFacturas } from '../../hooks/useFacturas'
 import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
+import { useViajes } from '../../hooks/useViajes'
+import { armarPreviewDesdeFacturas } from '../../hooks/useFacturaWizard'
+import type { FacturaPreviewData } from '../../hooks/useFacturaWizard'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
-import { FormField, inputStyle } from '../../components/FormFields'
 import { TipoBadge } from '../../components/Badge'
+import { NuevaFacturaModal } from './NuevaFacturaModal'
+import { FacturaDetailModal } from './FacturaDetailModal'
 import { theme } from '../../theme'
-import type { Factura, FacturarDTO } from '../../types'
+import type { Factura } from '../../types'
+
+// ─── Helpers locales ──────────────────────────────────────────────────────────
+// TODO (deuda técnica): formatFecha y formatMoney duplicados en múltiples
+// archivos. Extraer a utils/format.ts.
 
 function formatFecha(fecha: string | null) {
   if (!fecha) return '—'
@@ -26,7 +34,18 @@ function formatMoney(n: number) {
 
 type FiltroTitular = 'clientes' | 'fleteros' | null
 
-// ─── Estilos de tabla (consistentes con ViajesPage) ───────────────────────────
+// Estructura del target del detail modal. Se arma cuando el usuario clickea
+// una fila de Emitidas o Historial; null cuando el modal está cerrado.
+interface DetailTarget {
+  preview: FacturaPreviewData
+  numero: string | null
+  fechaEmision: string | null
+  vencimiento: string | null
+  cuit: string | null
+}
+
+// ─── Estilos de tabla ─────────────────────────────────────────────────────────
+// TODO (deuda técnica): duplicados con varios archivos del proyecto.
 
 const thStyle: React.CSSProperties = {
   padding: '12px 16px',
@@ -62,9 +81,6 @@ const tableWrapper: React.CSSProperties = {
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
 
-// Título centrado con acción opcional a la derecha.
-// Usa flex: 1 en ambos lados para que el título quede centrado exacto
-// incluso cuando hay un botón a la derecha.
 function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -95,7 +111,6 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
   )
 }
 
-// Botón de filtro: borde visible cuando inactivo para que se vea como botón
 function FiltroButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
@@ -121,30 +136,35 @@ function FiltroButton({ label, active, onClick }: { label: string; active: boole
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function FacturasPage() {
+  // ── Estado ───────────────────────────────────────────────────────────────
   const [filtroTitular, setFiltroTitular] = useState<FiltroTitular>(null)
-  const [modoSeleccion, setModoSeleccion] = useState(false)
-  const [seleccionados, setSeleccionados] = useState<Set<number>>(new Set())
-  const [modalFacturar, setModalFacturar] = useState(false)
-  const [facturarForm, setFacturarForm] = useState<FacturarDTO>({
-    numero: '',
-    fechaEmision: new Date().toISOString().slice(0, 10),
-    vencimiento: '',
-  })
-  const [formError, setFormError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
+  const [detailTarget, setDetailTarget] = useState<DetailTarget | null>(null)
   const [pagarTarget, setPagarTarget] = useState<{ numero: string; items: Factura[] } | null>(null)
   const [revertirTarget, setRevertirTarget] = useState<{ numero: string; items: Factura[] } | null>(null)
+  const [saving, setSaving] = useState(false)
 
+  // ── Datos externos ───────────────────────────────────────────────────────
   const { facturas, loading, error, facturarLote, pagar, revertir } = useFacturas()
   const { clientes } = useClientes()
   const { fleteros } = useFleteros()
+  const { viajes } = useViajes()
 
+  // Mapas auxiliares (id → nombre para mostrar; id → entidad completa para CUIT/etc.)
   const clienteMap = useMemo(
     () => Object.fromEntries(clientes.map(c => [c.id, c.nombre])),
     [clientes]
   )
   const fleteroMap = useMemo(
     () => Object.fromEntries(fleteros.map(f => [f.id, f.nombre])),
+    [fleteros]
+  )
+  const clienteByIdMap = useMemo(
+    () => Object.fromEntries(clientes.map(c => [c.id, c])),
+    [clientes]
+  )
+  const fleteroByIdMap = useMemo(
+    () => Object.fromEntries(fleteros.map(f => [f.id, f])),
     [fleteros]
   )
 
@@ -154,6 +174,7 @@ export function FacturasPage() {
     return '—'
   }
 
+  // ── Filtrado y agrupamiento ──────────────────────────────────────────────
   const facturasFiltradas = useMemo(() => {
     return facturas.filter(f => {
       if (f.tipo === 'pago_servicio') return false
@@ -166,6 +187,9 @@ export function FacturasPage() {
   const pendientes = useMemo(() => facturasFiltradas.filter(f => f.estado === 'sin_facturar'), [facturasFiltradas])
   const emitidas   = useMemo(() => facturasFiltradas.filter(f => f.estado === 'facturada'),    [facturasFiltradas])
   const historial  = useMemo(() => facturasFiltradas.filter(f => f.estado === 'pagada'),       [facturasFiltradas])
+
+  // Mapa viajeId → fecha del viaje, para mostrar columna N° Viaje + fecha en Pendientes.
+  // (Solo si necesitamos algo más del viaje en Pendientes; por ahora alcanza con el id.)
 
   const gruposEmitidas = useMemo(() => {
     const map = new Map<string, Factura[]>()
@@ -183,47 +207,81 @@ export function FacturasPage() {
       vencimiento: items[0].vencimiento,
       count: items.length,
     }))
-  }, [emitidas])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emitidas, clienteMap, fleteroMap])
 
-  const facturasSeleccionadas = pendientes.filter(f => seleccionados.has(f.id))
-  const titularesUnicos = new Set(facturasSeleccionadas.map(f => f.clienteId ?? f.fleteroId))
-  const seleccionValida = seleccionados.size > 0 && titularesUnicos.size === 1
+  const gruposHistorial = useMemo(() => {
+    const map = new Map<string, Factura[]>()
+    for (const f of historial) {
+      const key = f.numero ?? `__${f.id}`
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(f)
+    }
+    return Array.from(map.entries()).map(([numero, items]) => ({
+      numero,
+      items,
+      titular: getNombre(items[0]),
+      tipo: items[0].tipo,
+      montoTotal: items.reduce((sum, f) => sum + f.monto, 0),
+      vencimiento: items[0].vencimiento,
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historial, clienteMap, fleteroMap])
 
-  const cancelarModoSeleccion = () => {
-    setModoSeleccion(false)
-    setSeleccionados(new Set())
-  }
+  // ── Handlers de detail ───────────────────────────────────────────────────
+  // Al clickear un grupo de facturas (emitidas o historial), armamos el preview
+  // con los datos en memoria (facturas + viajes + nombre actor + cuit) y
+  // abrimos el modal.
+  const handleAbrirDetail = (items: Factura[]) => {
+    if (items.length === 0) return
+    const primera = items[0]
+    const tipo = primera.tipo === 'cobranza' ? 'cliente'
+              : primera.tipo === 'pago_fletero' ? 'fletero'
+              : null
+    if (tipo === null) return  // pago_servicio no se muestra en esta UI
 
-  const toggleSeleccion = (id: number) => {
-    setSeleccionados(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
+    // Resolver actor (id, nombre) y cuit
+    let actorId: number | null = null
+    let actorNombre = '—'
+    let cuit: string | null = null
+
+    if (tipo === 'cliente' && primera.clienteId !== null) {
+      actorId = primera.clienteId
+      const cliente = clienteByIdMap[primera.clienteId]
+      if (cliente) {
+        actorNombre = cliente.nombre
+        cuit = cliente.cuit
+      }
+    } else if (tipo === 'fletero' && primera.fleteroId !== null) {
+      actorId = primera.fleteroId
+      const fletero = fleteroByIdMap[primera.fleteroId]
+      if (fletero) {
+        actorNombre = fletero.nombre
+        cuit = fletero.cuit
+      }
+    }
+
+    if (actorId === null) return
+
+    const preview = armarPreviewDesdeFacturas(
+      tipo,
+      { id: actorId, nombre: actorNombre },
+      items,
+      viajes,
+      primera.incluyeIva,
+      clienteMap
+    )
+
+    setDetailTarget({
+      preview,
+      numero: primera.numero,
+      fechaEmision: primera.fechaEmision,
+      vencimiento: primera.vencimiento,
+      cuit,
     })
   }
 
-  const handleAbrirModalFacturar = () => {
-    setFacturarForm({ numero: '', fechaEmision: new Date().toISOString().slice(0, 10), vencimiento: '' })
-    setFormError(null)
-    setModalFacturar(true)
-  }
-
-  const handleConfirmarFacturar = async () => {
-    if (!facturarForm.numero.trim()) { setFormError('El número es requerido');     return }
-    if (!facturarForm.vencimiento)   { setFormError('El vencimiento es requerido'); return }
-    setSaving(true)
-    setFormError(null)
-    try {
-      await facturarLote(Array.from(seleccionados), facturarForm)
-      setModalFacturar(false)
-      cancelarModoSeleccion()
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Error al facturar')
-    } finally {
-      setSaving(false)
-    }
-  }
-
+  // ── Handlers de revertir / pagar ─────────────────────────────────────────
   const handleConfirmarRevertir = async () => {
     if (!revertirTarget) return
     setSaving(true)
@@ -253,13 +311,9 @@ export function FacturasPage() {
   return (
     <div style={{ padding: '32px' }}>
 
-      {/* Header: grid 3 columnas — igual que ViajesPage */}
+      {/* Header: filtro Clientes/Fleteros centrado */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '32px' }}>
-
-        {/* Izquierda: vacío */}
         <div />
-
-        {/* Centro: filtro Clientes / Fleteros */}
         <div style={{ display: 'flex', gap: '8px' }}>
           <FiltroButton
             label="Clientes"
@@ -272,8 +326,6 @@ export function FacturasPage() {
             onClick={() => setFiltroTitular(prev => prev === 'fleteros' ? null : 'fleteros')}
           />
         </div>
-
-        {/* Derecha: vacío */}
         <div />
       </div>
 
@@ -286,30 +338,14 @@ export function FacturasPage() {
       {/* ── Sección 1: Pendientes ── */}
       <SectionHeader
         title="Pendientes de facturar"
-        action={
-          modoSeleccion ? (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              {seleccionados.size > 0 && !seleccionValida && (
-                <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.xs, color: theme.colors.danger }}>
-                  Titulares distintos
-                </span>
-              )}
-              <Button variant="secondary" size="sm" onClick={cancelarModoSeleccion}>Cancelar</Button>
-              <Button size="sm" onClick={handleAbrirModalFacturar} disabled={!seleccionValida}>
-                Confirmar ({seleccionados.size})
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={() => setModoSeleccion(true)}>+ Nueva factura</Button>
-          )
-        }
+        action={<Button onClick={() => setWizardOpen(true)}>+ Nueva factura</Button>}
       />
       <div style={tableWrapper}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
-              {modoSeleccion && <th style={{ ...thStyle, width: '40px' }} />}
               <th style={thStyle}>Tipo</th>
+              <th style={thStyle}>N° Viaje</th>
               <th style={thStyle}>Titular</th>
               <th style={{ ...thStyle, textAlign: 'right' }}>Monto</th>
               <th style={thStyle}>Vencimiento</th>
@@ -317,46 +353,32 @@ export function FacturasPage() {
           </thead>
           <tbody>
             {pendientes.length === 0 ? (
-              <EmptyRow colSpan={modoSeleccion ? 5 : 4} />
-            ) : pendientes.map((f, i) => {
-              const seleccionada = seleccionados.has(f.id)
-              return (
-                <tr
-                  key={f.id}
-                  style={{
-                    borderBottom: i < pendientes.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none',
-                    background: seleccionada ? theme.colors.primaryLight : 'transparent',
-                    cursor: modoSeleccion ? 'pointer' : 'default',
-                    transition: 'background 0.1s',
-                  }}
-                  onClick={() => { if (modoSeleccion) toggleSeleccion(f.id) }}
-                  onMouseEnter={e => { if (!seleccionada) e.currentTarget.style.background = theme.colors.surfaceHover }}
-                  onMouseLeave={e => { e.currentTarget.style.background = seleccionada ? theme.colors.primaryLight : 'transparent' }}
-                >
-                  {modoSeleccion && (
-                    <td style={{ padding: '12px 16px' }}>
-                      <input
-                        type="checkbox"
-                        checked={seleccionada}
-                        onChange={() => toggleSeleccion(f.id)}
-                        onClick={e => e.stopPropagation()}
-                        style={{ cursor: 'pointer', accentColor: theme.colors.primary, width: '16px', height: '16px' }}
-                      />
-                    </td>
-                  )}
-                  <td style={{ padding: '12px 16px' }}><TipoBadge tipo={f.tipo} /></td>
-                  <td style={{ ...tdBaseStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
-                    {getNombre(f)}
-                  </td>
-                  <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                    {formatMoney(f.monto)}
-                  </td>
-                  <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>
-                    {formatFecha(f.vencimiento)}
-                  </td>
-                </tr>
-              )
-            })}
+              <EmptyRow colSpan={5} />
+            ) : pendientes.map((f, i) => (
+              <tr
+                key={f.id}
+                style={{
+                  borderBottom: i < pendientes.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none',
+                  transition: 'background 0.1s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = theme.colors.surfaceHover}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <td style={{ padding: '12px 16px' }}><TipoBadge tipo={f.tipo} /></td>
+                <td style={{ ...tdBaseStyle, fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
+                  {f.viajeId !== null ? `#${f.viajeId}` : '—'}
+                </td>
+                <td style={{ ...tdBaseStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
+                  {getNombre(f)}
+                </td>
+                <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
+                  {formatMoney(f.monto)}
+                </td>
+                <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>
+                  {formatFecha(f.vencimiento)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -382,7 +404,12 @@ export function FacturasPage() {
             ) : gruposEmitidas.map((grupo, i) => (
               <tr
                 key={grupo.numero}
-                style={{ borderBottom: i < gruposEmitidas.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none', transition: 'background 0.1s' }}
+                onClick={() => handleAbrirDetail(grupo.items)}
+                style={{
+                  borderBottom: i < gruposEmitidas.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none',
+                  transition: 'background 0.1s',
+                  cursor: 'pointer',
+                }}
                 onMouseEnter={e => e.currentTarget.style.background = theme.colors.surfaceHover}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
@@ -398,10 +425,23 @@ export function FacturasPage() {
                 <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>{formatFecha(grupo.vencimiento)}</td>
                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                    <Button size="sm" variant="secondary" onClick={() => setRevertirTarget({ numero: grupo.numero, items: grupo.items })}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={e => {
+                        e.stopPropagation()
+                        setRevertirTarget({ numero: grupo.numero, items: grupo.items })
+                      }}
+                    >
                       Revertir
                     </Button>
-                    <Button size="sm" onClick={() => setPagarTarget({ numero: grupo.numero, items: grupo.items })}>
+                    <Button
+                      size="sm"
+                      onClick={e => {
+                        e.stopPropagation()
+                        setPagarTarget({ numero: grupo.numero, items: grupo.items })
+                      }}
+                    >
                       Registrar pago
                     </Button>
                   </div>
@@ -426,68 +466,47 @@ export function FacturasPage() {
             </tr>
           </thead>
           <tbody>
-            {historial.length === 0 ? (
+            {gruposHistorial.length === 0 ? (
               <EmptyRow colSpan={5} />
-            ) : historial.map((f, i) => (
+            ) : gruposHistorial.map((grupo, i) => (
               <tr
-                key={f.id}
-                style={{ borderBottom: i < historial.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none', transition: 'background 0.1s' }}
+                key={grupo.numero}
+                onClick={() => handleAbrirDetail(grupo.items)}
+                style={{
+                  borderBottom: i < gruposHistorial.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none',
+                  transition: 'background 0.1s',
+                  cursor: 'pointer',
+                }}
                 onMouseEnter={e => e.currentTarget.style.background = theme.colors.surfaceHover}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <td style={{ ...tdBaseStyle, fontVariantNumeric: 'tabular-nums' }}>{f.numero ?? '—'}</td>
-                <td style={{ padding: '12px 16px' }}><TipoBadge tipo={f.tipo} /></td>
-                <td style={tdBaseStyle}>{getNombre(f)}</td>
-                <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(f.monto)}</td>
-                <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>{formatFecha(f.vencimiento)}</td>
+                <td style={{ ...tdBaseStyle, fontVariantNumeric: 'tabular-nums' }}>{grupo.numero}</td>
+                <td style={{ padding: '12px 16px' }}><TipoBadge tipo={grupo.tipo} /></td>
+                <td style={tdBaseStyle}>{grupo.titular}</td>
+                <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(grupo.montoTotal)}</td>
+                <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>{formatFecha(grupo.vencimiento)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Modal: emitir factura */}
-      <Modal open={modalFacturar} onClose={() => setModalFacturar(false)} title="Emitir factura" width="420px">
-        <div style={{ marginBottom: '16px', fontFamily: theme.font.family, fontSize: theme.font.size.sm, color: theme.colors.textSecondary }}>
-          Se aplicará a{' '}
-          <strong style={{ color: theme.colors.textPrimary }}>
-            {seleccionados.size} {seleccionados.size === 1 ? 'viaje' : 'viajes'}
-          </strong>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <FormField label="Número de factura" required error={formError || undefined}>
-            <input
-              style={inputStyle}
-              value={facturarForm.numero}
-              onChange={e => setFacturarForm(p => ({ ...p, numero: e.target.value }))}
-              placeholder="Ej: 0001-00001234"
-              autoFocus
-            />
-          </FormField>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <FormField label="Fecha de emisión" required>
-              <input
-                style={inputStyle}
-                type="date"
-                value={facturarForm.fechaEmision}
-                onChange={e => setFacturarForm(p => ({ ...p, fechaEmision: e.target.value }))}
-              />
-            </FormField>
-            <FormField label="Vencimiento" required>
-              <input
-                style={inputStyle}
-                type="date"
-                value={facturarForm.vencimiento}
-                onChange={e => setFacturarForm(p => ({ ...p, vencimiento: e.target.value }))}
-              />
-            </FormField>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
-            <Button variant="secondary" onClick={() => setModalFacturar(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmarFacturar} loading={saving}>Confirmar</Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Wizard de nueva factura */}
+      <NuevaFacturaModal
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onEmitir={facturarLote}
+      />
+
+      {/* Detail modal de factura emitida/pagada */}
+      <FacturaDetailModal
+        preview={detailTarget?.preview ?? null}
+        numero={detailTarget?.numero ?? null}
+        fechaEmision={detailTarget?.fechaEmision ?? null}
+        vencimiento={detailTarget?.vencimiento ?? null}
+        cuit={detailTarget?.cuit ?? null}
+        onClose={() => setDetailTarget(null)}
+      />
 
       {/* Modal: confirmar revertir */}
       <Modal open={!!revertirTarget} onClose={() => setRevertirTarget(null)} title="Revertir factura" width="400px">
