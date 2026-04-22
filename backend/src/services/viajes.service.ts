@@ -1,12 +1,12 @@
 // services/viajes.service.ts
 import { viajesRepository } from '../repositories/viajes.repository';
 import * as facturasRepository from '../repositories/facturas.repository';
-import { Viaje, CreateViajeDTO } from '../types';
+import { Viaje, CreateViajeDTO, ViajeFilters } from '../types';
 import { pool } from '../config/db';
 
 export const viajesService = {
-  async getAll(): Promise<Viaje[]> {
-    return viajesRepository.getAll();
+  async getAll(filtros?: ViajeFilters): Promise<Viaje[]> {
+    return viajesRepository.getAll(filtros);
   },
 
   async getById(id: number): Promise<Viaje | null> {

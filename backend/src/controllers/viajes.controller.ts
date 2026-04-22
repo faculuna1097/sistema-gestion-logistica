@@ -2,6 +2,7 @@
 
 import { Request, Response } from 'express';
 import { viajesService } from '../services/viajes.service';
+import { ViajeFilters } from '../types';
 
 function isPgError(err: unknown): err is Error & { code: string } {
   return err instanceof Error && 'code' in err;
@@ -24,6 +25,65 @@ function statusDeErrorService(err: unknown): { status: number; message: string }
 }
 
 /**
+ * Parsea y valida los query params para filtrar viajes.
+ * Si alguno es inválido, responde 400 y devuelve null.
+ * Si no hay ningún filtro, devuelve un objeto vacío (listar todo).
+ *
+ * Query params aceptados (todos opcionales):
+ *   cliente_id  — entero positivo
+ *   fletero_id  — entero positivo
+ *   desde       — string YYYY-MM-DD
+ *   hasta       — string YYYY-MM-DD (si vienen ambos, desde <= hasta)
+ */
+function parseFiltrosOr400(req: Request, res: Response): ViajeFilters | null {
+  const filtros: ViajeFilters = {};
+  const { cliente_id, fletero_id, desde, hasta } = req.query;
+
+  if (cliente_id !== undefined) {
+    const n = parseInt(cliente_id as string, 10);
+    if (Number.isNaN(n) || n < 1) {
+      res.status(400).json({ error: "El parámetro 'cliente_id' debe ser un número entero positivo" });
+      return null;
+    }
+    filtros.clienteId = n;
+  }
+
+  if (fletero_id !== undefined) {
+    const n = parseInt(fletero_id as string, 10);
+    if (Number.isNaN(n) || n < 1) {
+      res.status(400).json({ error: "El parámetro 'fletero_id' debe ser un número entero positivo" });
+      return null;
+    }
+    filtros.fleteroId = n;
+  }
+
+  const fechaRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (desde !== undefined) {
+    if (typeof desde !== 'string' || !fechaRegex.test(desde)) {
+      res.status(400).json({ error: "El parámetro 'desde' debe tener formato YYYY-MM-DD" });
+      return null;
+    }
+    filtros.desde = desde;
+  }
+
+  if (hasta !== undefined) {
+    if (typeof hasta !== 'string' || !fechaRegex.test(hasta)) {
+      res.status(400).json({ error: "El parámetro 'hasta' debe tener formato YYYY-MM-DD" });
+      return null;
+    }
+    filtros.hasta = hasta;
+  }
+
+  if (filtros.desde && filtros.hasta && filtros.desde > filtros.hasta) {
+    res.status(400).json({ error: "El parámetro 'desde' no puede ser posterior a 'hasta'" });
+    return null;
+  }
+
+  return filtros;
+}
+
+/**
  * Parsea y valida el id de la URL. Si es inválido, responde 400 y devuelve null.
  */
 function parseIdOr400(req: Request, res: Response): number | null {
@@ -38,7 +98,10 @@ function parseIdOr400(req: Request, res: Response): number | null {
 export const viajesController = {
   async getAll(req: Request, res: Response) {
     try {
-      const viajes = await viajesService.getAll();
+      const filtros = parseFiltrosOr400(req, res);
+      if (filtros === null) return;
+
+      const viajes = await viajesService.getAll(filtros);
       res.json(viajes);
     } catch (err: unknown) {
       console.error('[viajes] Error en getAll:', err instanceof Error ? err.message : err);

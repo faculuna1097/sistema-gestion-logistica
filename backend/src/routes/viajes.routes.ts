@@ -1,3 +1,5 @@
+// backend/src/routes/viajes.routes.ts
+
 import { Router } from 'express';
 import { viajesController } from '../controllers/viajes.controller';
 

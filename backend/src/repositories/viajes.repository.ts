@@ -2,7 +2,7 @@
 
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
-import { Viaje, CreateViajeDTO, EstadoFactura } from '../types';
+import { Viaje, CreateViajeDTO, EstadoFactura, ViajeFilters } from '../types';
 
 const SELECT = `
   id, fecha, cliente_id, valor_cliente, fletero_id, costo_fletero, created_at,
@@ -46,15 +46,41 @@ function mapRow(row: Record<string, unknown>): Viaje {
 }
 
 export const viajesRepository = {
-  async getAll(): Promise<Viaje[]> {
-    console.log('[viajes] getAll — request recibido');
+  async getAll(filtros?: ViajeFilters): Promise<Viaje[]> {
+    const filtrosLog = filtros && Object.keys(filtros).length > 0 ? ` | filtros: ${JSON.stringify(filtros)}` : '';
+    console.log(`[viajes] getAll — request recibido${filtrosLog}`);
+
+    const where: string[] = [];
+    const values: unknown[] = [];
+
+    if (filtros?.clienteId !== undefined) {
+      values.push(filtros.clienteId);
+      where.push(`v.cliente_id = $${values.length}`);
+    }
+    if (filtros?.fleteroId !== undefined) {
+      values.push(filtros.fleteroId);
+      where.push(`v.fletero_id = $${values.length}`);
+    }
+    if (filtros?.desde !== undefined) {
+      values.push(filtros.desde);
+      where.push(`v.fecha >= $${values.length}`);
+    }
+    if (filtros?.hasta !== undefined) {
+      values.push(filtros.hasta);
+      where.push(`v.fecha <= $${values.length}`);
+    }
+
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
     const result = await pool.query(`
       SELECT ${SELECT_CON_FACTURAS}
       FROM viajes v
       LEFT JOIN facturas fc ON fc.viaje_id = v.id AND fc.tipo = 'cobranza'
       LEFT JOIN facturas fp ON fp.viaje_id = v.id AND fp.tipo = 'pago_fletero'
+      ${whereClause}
       ORDER BY v.fecha DESC
-    `);
+    `, values);
+
     console.log(`[viajes] getAll — completado | registros: ${result.rows.length}`);
     return result.rows.map(mapRow);
   },
@@ -115,4 +141,35 @@ export const viajesRepository = {
     console.log(`[viajes] eliminar — completado | encontrado: ${result.rows.length > 0}`);
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   },
+
+  /**
+   * Devuelve el titular (cliente_id y fletero_id) de cada viaje pedido.
+   * Pensado para validaciones de coherencia — no usa mapRow porque no
+   * necesitamos el viaje completo, solo saber a quién pertenece.
+   *
+   * Los viajes que no existan simplemente no aparecen en el resultado.
+   */
+  async getClienteFleteroPorIds(
+    ids: number[]
+  ): Promise<{ id: number; clienteId: number; fleteroId: number }[]> {
+    console.log(`[viajes] getClienteFleteroPorIds — request recibido | ids: ${ids.length}`);
+
+    if (ids.length === 0) {
+      console.log(`[viajes] getClienteFleteroPorIds — sin ids, skip`);
+      return [];
+    }
+
+    const result = await pool.query(
+      `SELECT id, cliente_id, fletero_id FROM viajes WHERE id = ANY($1)`,
+      [ids]
+    );
+
+    console.log(`[viajes] getClienteFleteroPorIds — completado | encontrados: ${result.rows.length}`);
+    return result.rows.map((row) => ({
+      id: Number(row.id),
+      clienteId: Number(row.cliente_id),
+      fleteroId: Number(row.fletero_id),
+    }));
+  },
 };
+
