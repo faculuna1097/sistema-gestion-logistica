@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { api } from '../services/api'
-import { IVA_ALICUOTA } from './useInformeWizard'
+import { IVA_ALICUOTA } from '../utils/iva'
 import type { Factura, Viaje, TipoInforme, TipoFactura } from '../types'
 
 // ============================================================

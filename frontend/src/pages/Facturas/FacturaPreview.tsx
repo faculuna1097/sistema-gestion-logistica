@@ -1,70 +1,9 @@
 // frontend/src/pages/Facturas/FacturaPreview.tsx
 
 import { theme } from '../../theme'
+import { formatFecha, formatMoney } from '../../utils/format'
+import { thStyle, tdBaseStyle, tableWrapper, rowTotalStyle } from '../../components/tableStyles'
 import type { FacturaPreviewData, FacturaClienteFila, FacturaFleteroFila } from '../../hooks/useFacturaWizard'
-
-// ─── Helpers locales ──────────────────────────────────────────────────────────
-// TODO (deuda técnica): formatFecha y formatMoney ya están en FacturasPage e
-// InformePreview. Con este archivo son TRES copias. Extraer a utils/format.ts
-// en el chat de deuda técnica frontend.
-
-function formatFecha(fecha: string | null | undefined) {
-  if (!fecha) return '—'
-  return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS', maximumFractionDigits: 2,
-  }).format(n)
-}
-
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-// TODO (deuda técnica): triplicados con FacturasPage e InformePreview. Extraer
-// a components/Table.tsx o tableStyles.ts.
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.xs,
-  fontWeight: theme.font.weight.semibold,
-  color: theme.colors.textMuted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: theme.colors.surfaceHover,
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1,
-}
-
-const tdBaseStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-}
-
-const tableWrapper: React.CSSProperties = {
-  background: theme.colors.surface,
-  borderRadius: theme.radius.lg,
-  border: `1px solid ${theme.colors.border}`,
-  overflow: 'hidden',
-  boxShadow: theme.shadow.sm,
-}
-
-const rowTotalStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-  borderTop: `1px solid ${theme.colors.borderLight}`,
-}
 
 // ─── Subcomponentes de tabla ──────────────────────────────────────────────────
 

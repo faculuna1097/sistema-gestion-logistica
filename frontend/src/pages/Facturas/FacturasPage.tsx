@@ -13,24 +13,9 @@ import { TipoBadge } from '../../components/Badge'
 import { NuevaFacturaModal } from './NuevaFacturaModal'
 import { FacturaDetailModal } from './FacturaDetailModal'
 import { theme } from '../../theme'
+import { formatFecha, formatMoneyRound } from '../../utils/format'
+import { thStyle, tdBaseStyle, tableWrapper } from '../../components/tableStyles'
 import type { Factura } from '../../types'
-
-// ─── Helpers locales ──────────────────────────────────────────────────────────
-// TODO (deuda técnica): formatFecha y formatMoney duplicados en múltiples
-// archivos. Extraer a utils/format.ts.
-
-function formatFecha(fecha: string | null) {
-  if (!fecha) return '—'
-  return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS', maximumFractionDigits: 0,
-  }).format(n)
-}
 
 type FiltroTitular = 'clientes' | 'fleteros' | null
 
@@ -42,41 +27,6 @@ interface DetailTarget {
   fechaEmision: string | null
   vencimiento: string | null
   cuit: string | null
-}
-
-// ─── Estilos de tabla ─────────────────────────────────────────────────────────
-// TODO (deuda técnica): duplicados con varios archivos del proyecto.
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.xs,
-  fontWeight: theme.font.weight.semibold,
-  color: theme.colors.textMuted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: theme.colors.surfaceHover,
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1,
-}
-
-const tdBaseStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-}
-
-const tableWrapper: React.CSSProperties = {
-  background: theme.colors.surface,
-  borderRadius: theme.radius.lg,
-  border: `1px solid ${theme.colors.border}`,
-  overflow: 'hidden',
-  boxShadow: theme.shadow.sm,
-  marginBottom: '40px',
 }
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
@@ -131,6 +81,13 @@ function FiltroButton({ label, active, onClick }: { label: string; active: boole
       {label}
     </button>
   )
+}
+
+// Wrapper de tabla de FacturasPage: las 3 secciones llevan marginBottom 40px
+// entre ellas. El margen se aplica localmente, no en tableStyles.
+const sectionTableWrapper: React.CSSProperties = {
+  ...tableWrapper,
+  marginBottom: '40px',
 }
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -188,9 +145,6 @@ export function FacturasPage() {
   const emitidas   = useMemo(() => facturasFiltradas.filter(f => f.estado === 'facturada'),    [facturasFiltradas])
   const historial  = useMemo(() => facturasFiltradas.filter(f => f.estado === 'pagada'),       [facturasFiltradas])
 
-  // Mapa viajeId → fecha del viaje, para mostrar columna N° Viaje + fecha en Pendientes.
-  // (Solo si necesitamos algo más del viaje en Pendientes; por ahora alcanza con el id.)
-
   const gruposEmitidas = useMemo(() => {
     const map = new Map<string, Factura[]>()
     for (const f of emitidas) {
@@ -229,9 +183,6 @@ export function FacturasPage() {
   }, [historial, clienteMap, fleteroMap])
 
   // ── Handlers de detail ───────────────────────────────────────────────────
-  // Al clickear un grupo de facturas (emitidas o historial), armamos el preview
-  // con los datos en memoria (facturas + viajes + nombre actor + cuit) y
-  // abrimos el modal.
   const handleAbrirDetail = (items: Factura[]) => {
     if (items.length === 0) return
     const primera = items[0]
@@ -340,7 +291,7 @@ export function FacturasPage() {
         title="Pendientes de facturar"
         action={<Button onClick={() => setWizardOpen(true)}>+ Nueva factura</Button>}
       />
-      <div style={tableWrapper}>
+      <div style={sectionTableWrapper}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
@@ -372,7 +323,7 @@ export function FacturasPage() {
                   {getNombre(f)}
                 </td>
                 <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                  {formatMoney(f.monto)}
+                  {formatMoneyRound(f.monto)}
                 </td>
                 <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>
                   {formatFecha(f.vencimiento)}
@@ -385,7 +336,7 @@ export function FacturasPage() {
 
       {/* ── Sección 2: Emitidas ── */}
       <SectionHeader title="Facturas emitidas" />
-      <div style={tableWrapper}>
+      <div style={sectionTableWrapper}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
@@ -420,7 +371,7 @@ export function FacturasPage() {
                 <td style={{ ...tdBaseStyle, color: theme.colors.textPrimary }}>{grupo.titular}</td>
                 <td style={{ ...tdBaseStyle, textAlign: 'right' }}>{grupo.count}</td>
                 <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                  {formatMoney(grupo.montoTotal)}
+                  {formatMoneyRound(grupo.montoTotal)}
                 </td>
                 <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>{formatFecha(grupo.vencimiento)}</td>
                 <td style={{ padding: '12px 16px', textAlign: 'right' }}>
@@ -454,7 +405,7 @@ export function FacturasPage() {
 
       {/* ── Sección 3: Historial ── */}
       <SectionHeader title="Historial" />
-      <div style={{ ...tableWrapper, opacity: 0.85 }}>
+      <div style={{ ...sectionTableWrapper, opacity: 0.85 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
@@ -483,7 +434,7 @@ export function FacturasPage() {
                 <td style={{ ...tdBaseStyle, fontVariantNumeric: 'tabular-nums' }}>{grupo.numero}</td>
                 <td style={{ padding: '12px 16px' }}><TipoBadge tipo={grupo.tipo} /></td>
                 <td style={tdBaseStyle}>{grupo.titular}</td>
-                <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatMoney(grupo.montoTotal)}</td>
+                <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatMoneyRound(grupo.montoTotal)}</td>
                 <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>{formatFecha(grupo.vencimiento)}</td>
               </tr>
             ))}
@@ -531,7 +482,7 @@ export function FacturasPage() {
           <strong style={{ color: theme.colors.textPrimary }}>{pagarTarget?.numero}</strong>{' '}
           por{' '}
           <strong style={{ color: theme.colors.textPrimary }}>
-            {pagarTarget && formatMoney(pagarTarget.items.reduce((sum, f) => sum + f.monto, 0))}
+            {pagarTarget && formatMoneyRound(pagarTarget.items.reduce((sum, f) => sum + f.monto, 0))}
           </strong>?
         </div>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>

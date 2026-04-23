@@ -1,71 +1,9 @@
 // frontend/src/pages/Informes/InformePreview.tsx
 
 import { theme } from '../../theme'
+import { formatFecha, formatMoney } from '../../utils/format'
+import { thStyle, tdBaseStyle, tableWrapper, rowTotalStyle } from '../../components/tableStyles'
 import type { InformeData, InformeClienteFila, InformeFleteroFila } from '../../types'
-
-// ─── Helpers locales ──────────────────────────────────────────────────────────
-// TODO (deuda técnica): extraer formatFecha y formatMoney a utils/format.ts
-// cuando haya un tercer consumidor. Hoy están duplicados entre FacturasPage
-// e InformePreview.
-
-function formatFecha(fecha: string | null) {
-  if (!fecha) return '—'
-  return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS', maximumFractionDigits: 2,
-  }).format(n)
-}
-
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-// TODO (deuda técnica): extraer a components/Table.tsx o tableStyles.ts.
-// Duplicados con FacturasPage.
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.xs,
-  fontWeight: theme.font.weight.semibold,
-  color: theme.colors.textMuted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: theme.colors.surfaceHover,
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1,
-}
-
-const tdBaseStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-}
-
-const tableWrapper: React.CSSProperties = {
-  background: theme.colors.surface,
-  borderRadius: theme.radius.lg,
-  border: `1px solid ${theme.colors.border}`,
-  overflow: 'hidden',
-  boxShadow: theme.shadow.sm,
-}
-
-// Fila del bloque de totales
-const rowTotalStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-  borderTop: `1px solid ${theme.colors.borderLight}`,
-}
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
 
@@ -180,7 +118,7 @@ export function InformePreview({ informe }: Props) {
         </div>
       </div>
 
-        {/* Tabla de viajes — scrolleable si hay muchos */}
+      {/* Tabla de viajes — scrolleable si hay muchos */}
       <div style={{
         ...tableWrapper,
         marginBottom: '16px',

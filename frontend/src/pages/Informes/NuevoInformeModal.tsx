@@ -9,58 +9,12 @@ import { Button } from '../../components/Button'
 import { FormField, inputStyle } from '../../components/FormFields'
 import { InformePreview } from './InformePreview'
 import { theme } from '../../theme'
+import { formatFecha, formatMoneyRound } from '../../utils/format'
+import { getRangoDefault } from '../../utils/fechas'
+import { thStyle, tdBaseStyle } from '../../components/tableStyles'
 import type { TipoInforme, InformeData, CreateInformeDTO, Informe } from '../../types'
 
-// ─── Helpers locales ──────────────────────────────────────────────────────────
-
-function formatFecha(fecha: string | null) {
-  if (!fecha) return '—'
-  return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS', maximumFractionDigits: 0,
-  }).format(n)
-}
-
-// Rango default: del primer día del mes hasta hoy (formato YYYY-MM-DD)
-function getRangoDefault() {
-  const hoy = new Date()
-  const yyyy = hoy.getFullYear()
-  const mm = String(hoy.getMonth() + 1).padStart(2, '0')
-  const dd = String(hoy.getDate()).padStart(2, '0')
-  return {
-    desde: `${yyyy}-${mm}-01`,
-    hasta: `${yyyy}-${mm}-${dd}`,
-  }
-}
-
-// Estilos de tabla (duplicados con FacturasPage e InformePreview — deuda técnica)
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.xs,
-  fontWeight: theme.font.weight.semibold,
-  color: theme.colors.textMuted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: theme.colors.surfaceHover,
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1,
-}
-
-const tdBaseStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-}
+// ─── Subcomponentes ───────────────────────────────────────────────────────────
 
 // Botón tipo "chip" para elegir Cliente/Fletero
 function TipoButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -121,7 +75,7 @@ export function NuevoInformeModal({ open, onClose, onGuardar }: Props) {
   const actores = tipo === 'cliente' ? clientes : tipo === 'fletero' ? fleteros : []
   const actorElegido = actores.find(a => a.id === actorId)
 
-// Reset completo al cerrar
+  // Reset completo al cerrar
   const handleClose = () => {
     setPaso(1)
     setTipo(null)
@@ -166,7 +120,7 @@ export function NuevoInformeModal({ open, onClose, onGuardar }: Props) {
     })
   }
 
-    // Checkbox master: tilda todo si no todos están tildados; destilda si todos lo están
+  // Checkbox master: tilda todo si no todos están tildados; destilda si todos lo están
   const todosSeleccionados = viajes.length > 0 && seleccionados.size === viajes.length
   const algunosSeleccionados = seleccionados.size > 0 && !todosSeleccionados
 
@@ -203,7 +157,7 @@ export function NuevoInformeModal({ open, onClose, onGuardar }: Props) {
     setPaso(3)
   }
 
-// Volver de paso 3 a paso 2 (preservando selección)
+  // Volver de paso 3 a paso 2 (preservando selección)
   const handleVolver = () => {
     setInformeGenerado(null)
     setSaveError(null)
@@ -392,7 +346,7 @@ export function NuevoInformeModal({ open, onClose, onGuardar }: Props) {
                       {tipo === 'cliente' && <td style={tdBaseStyle}>{v.destinatario ?? '—'}</td>}
                       {tipo === 'fletero' && <td style={{ ...tdBaseStyle, color: theme.colors.textPrimary }}>{mapaClientes[v.clienteId] ?? `Cliente ${v.clienteId}`}</td>}
                       <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                        {formatMoney(valorMostrado)}
+                        {formatMoneyRound(valorMostrado)}
                       </td>
                     </tr>
                   )

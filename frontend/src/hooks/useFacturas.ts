@@ -1,15 +1,24 @@
-// frontend/src/hooks/useFacturas.ts 
+// frontend/src/hooks/useFacturas.ts
 
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 import type { Factura, FacturarDTO } from '../types'
 
-// Exportada para que el wizard de NuevaFacturaModal pueda construir filtros tipados.
+/**
+ * Filtros aceptados por el hook de listado de facturas.
+ *
+ * Campos en camelCase (convención del frontend). La serialización a snake_case
+ * para el wire format ocurre internamente al construir la URL.
+ *
+ * Exportado por si otro hook o componente lo quiere consumir. Hoy no hay
+ * consumers externos, pero dejarlo exportado habilita tipado desde el caller
+ * sin redeclararlo.
+ */
 export interface FacturasFiltros {
   tipo?: string
   estado?: string
-  cliente_id?: number
-  fletero_id?: number
+  clienteId?: number
+  fleteroId?: number
 }
 
 export function useFacturas(filtros?: FacturasFiltros) {
@@ -21,11 +30,16 @@ export function useFacturas(filtros?: FacturasFiltros) {
     setLoading(true)
     setError(null)
     try {
+      // Serialización a snake_case: el endpoint del backend acepta snake_case
+      // en los query params (contrato de URL). El camelCase vive solo en el
+      // lado React.
+      // Chequeo por `!== undefined` (no truthy) para que id=0 — aunque hoy no
+      // ocurra — no sea tratado como ausencia de filtro.
       const params = new URLSearchParams()
-      if (filtros?.tipo)       params.append('tipo',       filtros.tipo)
-      if (filtros?.estado)     params.append('estado',     filtros.estado)
-      if (filtros?.cliente_id) params.append('cliente_id', String(filtros.cliente_id))
-      if (filtros?.fletero_id) params.append('fletero_id', String(filtros.fletero_id))
+      if (filtros?.tipo      !== undefined) params.append('tipo',       filtros.tipo)
+      if (filtros?.estado    !== undefined) params.append('estado',     filtros.estado)
+      if (filtros?.clienteId !== undefined) params.append('cliente_id', String(filtros.clienteId))
+      if (filtros?.fleteroId !== undefined) params.append('fletero_id', String(filtros.fleteroId))
       const query = params.toString() ? `?${params.toString()}` : ''
       const data = await api.get<Factura[]>(`/facturas${query}`)
       setFacturas(data)
@@ -34,7 +48,7 @@ export function useFacturas(filtros?: FacturasFiltros) {
     } finally {
       setLoading(false)
     }
-  }, [filtros?.tipo, filtros?.estado, filtros?.cliente_id, filtros?.fletero_id])
+  }, [filtros?.tipo, filtros?.estado, filtros?.clienteId, filtros?.fleteroId])
 
   useEffect(() => { fetchFacturas() }, [fetchFacturas])
 
@@ -56,7 +70,7 @@ export function useFacturas(filtros?: FacturasFiltros) {
     return actualizada
   }
 
-  // facturarLote ahora acepta ajustesMonto e incluyeIva vía FacturarDTO ampliado.
+  // facturarLote acepta ajustesMonto e incluyeIva vía FacturarDTO ampliado.
   // El spread `{ ids, ...dto }` los manda al backend tal cual; si vienen undefined,
   // el backend se comporta exactamente como antes (retrocompatibilidad).
   const facturarLote = async (ids: number[], dto: FacturarDTO) => {

@@ -1,13 +1,9 @@
 // frontend/src/hooks/useInformeWizard.ts
 
 import { useState, useCallback } from 'react'
+import { api } from '../services/api'
+import { IVA_ALICUOTA } from '../utils/iva'
 import type { Viaje, ViajeFilters, TipoInforme, InformeData, InformeClienteFila, InformeFleteroFila } from '../types'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-
-// Alícuota del IVA para los informes. Cuando aparezcan más usos (ej: toggle
-// de IVA en facturas), mover a utils/ y compartir.
-export const IVA_ALICUOTA = 0.21
 
 /**
  * Hook para traer viajes filtrados desde el backend.
@@ -26,22 +22,18 @@ export function useInformeWizard() {
     setError(null)
     try {
       // Construimos query string. Solo incluimos los filtros definidos.
+      // Nota: el endpoint /viajes acepta snake_case en la URL; el hook hace la
+      // traducción de camelCase (interno) a snake_case (wire format).
       const params = new URLSearchParams()
       if (filtros.clienteId !== undefined) params.append('cliente_id', String(filtros.clienteId))
       if (filtros.fleteroId !== undefined) params.append('fletero_id', String(filtros.fleteroId))
-      if (filtros.desde !== undefined)     params.append('desde', filtros.desde)
-      if (filtros.hasta !== undefined)     params.append('hasta', filtros.hasta)
+      if (filtros.desde     !== undefined) params.append('desde', filtros.desde)
+      if (filtros.hasta     !== undefined) params.append('hasta', filtros.hasta)
 
       const queryString = params.toString()
-      const url = `${API_URL}/viajes${queryString ? `?${queryString}` : ''}`
+      const url = `/viajes${queryString ? `?${queryString}` : ''}`
 
-      const res = await fetch(url)
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || body.message || `HTTP ${res.status}`)
-      }
-
-      const data: Viaje[] = await res.json()
+      const data = await api.get<Viaje[]>(url)
       setViajes(data)
     } catch (err: unknown) {
       const mensaje = err instanceof Error ? err.message : 'Error al cargar viajes'

@@ -8,74 +8,12 @@ import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
 import { FormField, inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
+import { formatFecha, formatMoney } from '../../utils/format'
+import { getRangoDefault, sumarDias } from '../../utils/fechas'
+import { thStyle, tdBaseStyle, rowTotalStyle } from '../../components/tableStyles'
 import type { TipoInforme, FacturarDTO, Factura, AjusteMontoFactura } from '../../types'
 
-// ─── Helpers locales ──────────────────────────────────────────────────────────
-// TODO (deuda técnica): formatFecha, formatMoney y getRangoDefault duplicados
-// con NuevoInformeModal. Extraer a utils/format.ts y utils/fechas.ts.
-
-function formatFecha(fecha: string | null) {
-  if (!fecha) return '—'
-  return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatMoney(n: number) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency', currency: 'ARS', maximumFractionDigits: 2,
-  }).format(n)
-}
-
-function getRangoDefault() {
-  const hoy = new Date()
-  const yyyy = hoy.getFullYear()
-  const mm = String(hoy.getMonth() + 1).padStart(2, '0')
-  const dd = String(hoy.getDate()).padStart(2, '0')
-  return {
-    desde: `${yyyy}-${mm}-01`,
-    hasta: `${yyyy}-${mm}-${dd}`,
-    hoy:   `${yyyy}-${mm}-${dd}`,
-  }
-}
-
-// Suma N días a una fecha YYYY-MM-DD y devuelve YYYY-MM-DD.
-// Usa T12:00:00 para evitar el corrimiento UTC-3.
-function sumarDias(fecha: string, dias: number): string {
-  const d = new Date(fecha + 'T12:00:00')
-  d.setDate(d.getDate() + dias)
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
-
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-// TODO (deuda técnica): estilos de tabla quintuplicados (FacturasPage,
-// InformePreview, FacturaPreview, NuevoInformeModal, NuevaFacturaModal).
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.xs,
-  fontWeight: theme.font.weight.semibold,
-  color: theme.colors.textMuted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: theme.colors.surfaceHover,
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1,
-}
-
-const tdBaseStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-}
+// ─── Estilos locales ──────────────────────────────────────────────────────────
 
 // Input numérico inline para edición de monto (más compacto que inputStyle estándar).
 const montoInputStyle: React.CSSProperties = {
@@ -90,17 +28,6 @@ const montoInputStyle: React.CSSProperties = {
   width: '120px',
   textAlign: 'right',
   fontVariantNumeric: 'tabular-nums',
-}
-
-// Fila del bloque de totales (replicado de FacturaPreview/InformePreview).
-const rowTotalStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-  borderTop: `1px solid ${theme.colors.borderLight}`,
 }
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
@@ -615,7 +542,7 @@ export function NuevaFacturaModal({ open, onClose, onEmitir }: Props) {
           <div style={{
             background: theme.colors.surface, borderRadius: theme.radius.lg,
             border: `1px solid ${theme.colors.border}`, overflow: 'hidden',
-            maxHeight: '180px', overflowY: 'auto', marginBottom: '20px', ///////////////////////////////////////////////////////////////////
+            maxHeight: '180px', overflowY: 'auto', marginBottom: '20px',
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>

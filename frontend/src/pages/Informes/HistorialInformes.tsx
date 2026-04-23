@@ -5,57 +5,9 @@ import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
 import { TipoInformeBadge } from '../../components/Badge'
 import { theme } from '../../theme'
+import { formatFecha, formatFechaCreacion } from '../../utils/format'
+import { thStyle, tdBaseStyle, tableWrapper } from '../../components/tableStyles'
 import type { Informe } from '../../types'
-
-// ─── Formatters ──────────────────────────────────────────────────────────────
-// Duplicados con FacturasPage e InformePreview — deuda técnica marcada.
-
-function formatFecha(fecha: string | null) {
-  if (!fecha) return '—'
-  return new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatFechaCreacion(iso: string) {
-  return new Date(iso).toLocaleDateString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-// ─── Estilos de tabla (consistentes con FacturasPage y ViajesPage) ───────────
-// Duplicados entre archivos — deuda técnica marcada para resolver aparte.
-
-const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.xs,
-  fontWeight: theme.font.weight.semibold,
-  color: theme.colors.textMuted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  background: theme.colors.surfaceHover,
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-  position: 'sticky',
-  top: 0,
-  zIndex: 1,
-}
-
-const tdBaseStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  fontFamily: theme.font.family,
-  fontSize: theme.font.size.sm,
-  color: theme.colors.textSecondary,
-}
-
-const tableWrapper: React.CSSProperties = {
-  background: theme.colors.surface,
-  borderRadius: theme.radius.lg,
-  border: `1px solid ${theme.colors.border}`,
-  overflow: 'hidden',
-  boxShadow: theme.shadow.sm,
-}
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -123,7 +75,7 @@ export function HistorialInformes({
     )
   }
   console.log('[HistorialInformes] render con', informes.length, 'informes')
-  
+
   return (
     <div style={tableWrapper}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
