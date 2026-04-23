@@ -1,11 +1,8 @@
-// src/controllers/fleteros.controller.ts
+// backend/src/controllers/fleteros.controller.ts
 
 import { Request, Response } from 'express';
 import * as fleterosService from '../services/fleteros.service';
-
-function isPgError(err: unknown): err is Error & { code: string } {
-  return err instanceof Error && 'code' in err;
-}
+import { isPgError, parseIdOr400 } from '../utils/errors';
 
 export async function getAll(req: Request, res: Response): Promise<void> {
   try {
@@ -19,7 +16,9 @@ export async function getAll(req: Request, res: Response): Promise<void> {
 
 export async function getById(req: Request, res: Response): Promise<void> {
   try {
-    const id = Number(req.params.id);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
     const fletero = await fleterosService.getById(id);
 
     if (!fletero) {
@@ -61,7 +60,9 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 export async function update(req: Request, res: Response): Promise<void> {
   try {
-    const id = Number(req.params.id);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
     const { nombre, email, telefono, cbu, cuit } = req.body;
 
     const fletero = await fleterosService.update(id, { nombre, email, telefono, cbu, cuit });
@@ -88,7 +89,9 @@ export async function update(req: Request, res: Response): Promise<void> {
 
 export async function remove(req: Request, res: Response): Promise<void> {
   try {
-    const id = Number(req.params.id);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
     const fletero = await fleterosService.remove(id);
 
     if (!fletero) {

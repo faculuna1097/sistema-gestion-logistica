@@ -80,7 +80,11 @@ export async function facturarLote(
     incluyeIva?: boolean;
   }
 ): Promise<Factura[]> {
-  // --- Validaciones semánticas de los campos nuevos ---
+  // --- Validaciones semánticas ---
+
+  if (ids.length === 0) {
+    throw new Error('DTO inválido: ids no puede estar vacío');
+  }
 
   if (datos.incluyeIva !== undefined && typeof datos.incluyeIva !== 'boolean') {
     throw new Error(`DTO inválido: incluyeIva debe ser boolean`);

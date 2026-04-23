@@ -78,7 +78,7 @@ export const viajesRepository = {
       LEFT JOIN facturas fc ON fc.viaje_id = v.id AND fc.tipo = 'cobranza'
       LEFT JOIN facturas fp ON fp.viaje_id = v.id AND fp.tipo = 'pago_fletero'
       ${whereClause}
-      ORDER BY v.fecha DESC
+      ORDER BY v.fecha DESC, v.id DESC
     `, values);
 
     console.log(`[viajes] getAll — completado | registros: ${result.rows.length}`);

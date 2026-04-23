@@ -45,11 +45,11 @@ export async function getAll(filtros: FiltrosFactura): Promise<Factura[]> {
   const valores: unknown[] = [];
   let idx = 1;
 
-  if (filtros.tipo)       { condiciones.push(`tipo = $${idx++}`);       valores.push(filtros.tipo); }
-  if (filtros.estado)     { condiciones.push(`estado = $${idx++}`);     valores.push(filtros.estado); }
-  if (filtros.cliente_id) { condiciones.push(`cliente_id = $${idx++}`); valores.push(filtros.cliente_id); }
-  if (filtros.fletero_id) { condiciones.push(`fletero_id = $${idx++}`); valores.push(filtros.fletero_id); }
-  if (filtros.viaje_id)   { condiciones.push(`viaje_id = $${idx++}`);   valores.push(filtros.viaje_id); }
+  if (filtros.tipo       !== undefined) { condiciones.push(`tipo = $${idx++}`);       valores.push(filtros.tipo); }
+  if (filtros.estado     !== undefined) { condiciones.push(`estado = $${idx++}`);     valores.push(filtros.estado); }
+  if (filtros.cliente_id !== undefined) { condiciones.push(`cliente_id = $${idx++}`); valores.push(filtros.cliente_id); }
+  if (filtros.fletero_id !== undefined) { condiciones.push(`fletero_id = $${idx++}`); valores.push(filtros.fletero_id); }
+  if (filtros.viaje_id   !== undefined) { condiciones.push(`viaje_id = $${idx++}`);   valores.push(filtros.viaje_id); }
 
   const where = condiciones.length > 0 ? `WHERE ${condiciones.join(' AND ')}` : '';
   const result = await pool.query(`SELECT ${SELECT} FROM facturas ${where} ORDER BY id DESC`, valores);

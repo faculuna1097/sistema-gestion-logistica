@@ -2,10 +2,7 @@
 
 import { Request, Response } from 'express';
 import * as facturasService from '../services/facturas.service';
-
-function isPgError(err: unknown): err is Error & { code: string } {
-  return err instanceof Error && 'code' in err;
-}
+import { isPgError, parseIdOr400 } from '../utils/errors';
 
 function validarFacturarLoteBody(body: unknown): string | null {
   if (typeof body !== 'object' || body === null) {
@@ -63,9 +60,9 @@ export async function getAll(req: Request, res: Response) {
     const facturas = await facturasService.getAll({
       tipo: tipo as string | undefined,
       estado: estado as string | undefined,
-      clienteId: cliente_id ? Number(cliente_id) : undefined,
-      fleteroId: fletero_id ? Number(fletero_id) : undefined,
-      viajeId: viaje_id ? Number(viaje_id) : undefined,
+      clienteId: cliente_id !== undefined ? Number(cliente_id) : undefined,
+      fleteroId: fletero_id !== undefined ? Number(fletero_id) : undefined,
+      viajeId:   viaje_id   !== undefined ? Number(viaje_id)   : undefined,
     });
     res.json(facturas);
   } catch (err: unknown) {
@@ -76,7 +73,10 @@ export async function getAll(req: Request, res: Response) {
 
 export async function getById(req: Request, res: Response) {
   try {
-    const factura = await facturasService.getById(Number(req.params.id));
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
+    const factura = await facturasService.getById(id);
     res.json(factura);
   } catch (err: unknown) {
     console.error('[facturas] Error en getById:', err instanceof Error ? err.message : err);
@@ -104,7 +104,10 @@ export async function crear(req: Request, res: Response) {
 
 export async function actualizar(req: Request, res: Response) {
   try {
-    const factura = await facturasService.actualizar(Number(req.params.id), req.body);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
+    const factura = await facturasService.actualizar(id, req.body);
     res.json(factura);
   } catch (err: unknown) {
     console.error('[facturas] Error en actualizar:', err instanceof Error ? err.message : err);
@@ -116,7 +119,10 @@ export async function actualizar(req: Request, res: Response) {
 
 export async function facturar(req: Request, res: Response) {
   try {
-    const factura = await facturasService.facturar(Number(req.params.id), req.body);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
+    const factura = await facturasService.facturar(id, req.body);
     res.json(factura);
   } catch (err: unknown) {
     console.error('[facturas] Error en facturar:', err instanceof Error ? err.message : err);
@@ -128,7 +134,10 @@ export async function facturar(req: Request, res: Response) {
 
 export async function pagar(req: Request, res: Response) {
   try {
-    const factura = await facturasService.pagar(Number(req.params.id));
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
+    const factura = await facturasService.pagar(id);
     res.json(factura);
   } catch (err: unknown) {
     console.error('[facturas] Error en pagar:', err instanceof Error ? err.message : err);
@@ -140,7 +149,10 @@ export async function pagar(req: Request, res: Response) {
 
 export async function eliminar(req: Request, res: Response) {
   try {
-    await facturasService.eliminar(Number(req.params.id));
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
+    await facturasService.eliminar(id);
     res.status(204).send();
   } catch (err: unknown) {
     console.error('[facturas] Error en eliminar:', err instanceof Error ? err.message : err);
@@ -152,7 +164,10 @@ export async function eliminar(req: Request, res: Response) {
 
 export async function revertir(req: Request, res: Response) {
   try {
-    const factura = await facturasService.revertir(Number(req.params.id));
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
+    const factura = await facturasService.revertir(id);
     res.json(factura);
   } catch (err: unknown) {
     console.error('[facturas] Error en revertir:', err instanceof Error ? err.message : err);

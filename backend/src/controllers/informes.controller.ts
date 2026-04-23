@@ -3,19 +3,19 @@
 import { Request, Response } from 'express';
 import * as informesService from '../services/informes.service';
 import { InformeFilters, TipoInforme } from '../types';
+import { isPgError, parseIdOr400 } from '../utils/errors';
 
 // ============================================================
 // Helpers
 // ============================================================
 
-function isPgError(err: unknown): err is Error & { code: string } {
-  return err instanceof Error && 'code' in err;
-}
-
 /**
  * Mapea errores del service a status HTTP.
  * Patrón temporal basado en prefijos del mensaje, hasta migrar a clases de error custom.
  * Devuelve null si no hay match (el caller debe tratarlo como 500).
+ *
+ * Local a este controller: cada recurso tiene su propio set de prefijos y
+ * unificarlo acoplaría los services entre sí.
  */
 function statusDeErrorService(err: unknown): { status: number; message: string } | null {
   if (!(err instanceof Error)) return null;
@@ -27,18 +27,6 @@ function statusDeErrorService(err: unknown): { status: number; message: string }
   if (msg.startsWith('Inconsistencia'))     return { status: 500, message: msg };
 
   return null;
-}
-
-/**
- * Parsea y valida el id de la URL. Si es inválido, responde 400 y devuelve null.
- */
-function parseIdOr400(req: Request, res: Response): number | null {
-  const id = parseInt(req.params.id as string, 10);
-  if (Number.isNaN(id)) {
-    res.status(400).json({ error: 'ID inválido' });
-    return null;
-  }
-  return id;
 }
 
 /**

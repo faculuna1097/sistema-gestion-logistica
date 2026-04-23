@@ -1,12 +1,8 @@
-// src/controllers/clientes.controller.ts
+// backend/src/controllers/clientes.controller.ts
 
 import { Request, Response } from 'express';
 import * as clientesService from '../services/clientes.service';
-
-// Type guard para errores de PostgreSQL (pg agrega .code al objeto Error)
-function isPgError(err: unknown): err is Error & { code: string } {
-  return err instanceof Error && 'code' in err;
-}
+import { isPgError, parseIdOr400 } from '../utils/errors';
 
 export async function getAll(req: Request, res: Response): Promise<void> {
   try {
@@ -20,7 +16,9 @@ export async function getAll(req: Request, res: Response): Promise<void> {
 
 export async function getById(req: Request, res: Response): Promise<void> {
   try {
-    const id = Number(req.params.id);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
     const cliente = await clientesService.getById(id);
 
     if (!cliente) {
@@ -62,7 +60,9 @@ export async function create(req: Request, res: Response): Promise<void> {
 
 export async function update(req: Request, res: Response): Promise<void> {
   try {
-    const id = Number(req.params.id);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
     const { nombre, email, telefono, cbu, cuit } = req.body;
 
     const cliente = await clientesService.update(id, { nombre, email, telefono, cbu, cuit });
@@ -89,7 +89,9 @@ export async function update(req: Request, res: Response): Promise<void> {
 
 export async function remove(req: Request, res: Response): Promise<void> {
   try {
-    const id = Number(req.params.id);
+    const id = parseIdOr400(req, res);
+    if (id === null) return;
+
     const cliente = await clientesService.remove(id);
 
     if (!cliente) {

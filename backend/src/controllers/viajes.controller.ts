@@ -3,15 +3,15 @@
 import { Request, Response } from 'express';
 import { viajesService } from '../services/viajes.service';
 import { ViajeFilters } from '../types';
-
-function isPgError(err: unknown): err is Error & { code: string } {
-  return err instanceof Error && 'code' in err;
-}
+import { isPgError, parseIdOr400 } from '../utils/errors';
 
 /**
  * Helper para mapear errores del service a status HTTP.
  * Patrón temporal basado en prefijos del mensaje, hasta migrar a clases de error custom.
  * Devuelve null si no hay match (el caller debe tratarlo como 500).
+ *
+ * Local a este controller: cada recurso tiene su propio set de prefijos y
+ * unificarlo acoplaría los services entre sí.
  */
 function statusDeErrorService(err: unknown): { status: number; message: string } | null {
   if (!(err instanceof Error)) return null;
@@ -81,18 +81,6 @@ function parseFiltrosOr400(req: Request, res: Response): ViajeFilters | null {
   }
 
   return filtros;
-}
-
-/**
- * Parsea y valida el id de la URL. Si es inválido, responde 400 y devuelve null.
- */
-function parseIdOr400(req: Request, res: Response): number | null {
-  const id = parseInt(req.params.id as string, 10);
-  if (Number.isNaN(id)) {
-    res.status(400).json({ error: 'ID inválido' });
-    return null;
-  }
-  return id;
 }
 
 export const viajesController = {
