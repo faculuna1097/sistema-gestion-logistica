@@ -1,7 +1,7 @@
 // backend/src/services/facturas.service.ts
 
 import * as facturasRepository from '../repositories/facturas.repository';
-import { Factura, CreateFacturaDTO } from '../types';
+import { Factura, CreateFacturaDTO, FacturarDTO } from '../types';
 
 export async function getAll(filtros: {
   tipo?: string;
@@ -70,31 +70,22 @@ export async function revertir(id: number): Promise<Factura> {
   return factura;
 }
 
-export async function facturarLote(
-  ids: number[],
-  datos: {
-    numero: string;
-    fechaEmision: string;
-    vencimiento: string;
-    ajustesMonto?: { id: number; monto: number }[];
-    incluyeIva?: boolean;
-  }
-): Promise<Factura[]> {
+export async function facturarLote(dto: FacturarDTO): Promise<Factura[]> {
   // --- Validaciones semánticas ---
 
-  if (ids.length === 0) {
+  if (dto.ids.length === 0) {
     throw new Error('DTO inválido: ids no puede estar vacío');
   }
 
-  if (datos.incluyeIva !== undefined && typeof datos.incluyeIva !== 'boolean') {
+  if (dto.incluyeIva !== undefined && typeof dto.incluyeIva !== 'boolean') {
     throw new Error(`DTO inválido: incluyeIva debe ser boolean`);
   }
 
-  if (datos.ajustesMonto !== undefined) {
-    const idsSet = new Set(ids);
+  if (dto.ajustesMonto !== undefined) {
+    const idsSet = new Set(dto.ids);
     const idsAjustadosVistos = new Set<number>();
 
-    for (const ajuste of datos.ajustesMonto) {
+    for (const ajuste of dto.ajustesMonto) {
       if (!idsSet.has(ajuste.id)) {
         throw new Error(
           `DTO inválido: ajuste de monto apunta a id ${ajuste.id} que no está en el lote`
@@ -116,13 +107,13 @@ export async function facturarLote(
 
   // --- Chequeo de número duplicado (best-effort, sin constraint UNIQUE en DB) ---
 
-  const existe = await facturasRepository.existeNumero(datos.numero);
+  const existe = await facturasRepository.existeNumero(dto.numero);
   if (existe) {
-    throw new Error(`El número de factura '${datos.numero}' ya existe`);
+    throw new Error(`El número de factura '${dto.numero}' ya existe`);
   }
 
   // --- Delegación al repository ---
   // El repository valida atómicamente que los ids estén en sin_facturar
   // y hace ROLLBACK si alguno no matchea. No necesita revalidación posterior.
-  return facturasRepository.facturarLote(ids, datos);
+  return facturasRepository.facturarLote(dto);
 }

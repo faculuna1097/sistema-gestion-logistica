@@ -3,6 +3,8 @@
 import { Request, Response } from 'express';
 import * as facturasService from '../services/facturas.service';
 import { isPgError, parseIdOr400 } from '../utils/errors';
+import { FacturarDTO } from '../types';
+
 
 function validarFacturarLoteBody(body: unknown): string | null {
   if (typeof body !== 'object' || body === null) {
@@ -186,25 +188,20 @@ export async function facturarLote(req: Request, res: Response) {
       return;
     }
 
-    const { ids, numero, fechaEmision, vencimiento, ajustesMonto, incluyeIva } = req.body;
+    // Tras validarFacturarLoteBody, el body cumple el shape de FacturarDTO.
+    const dto = req.body as FacturarDTO;
 
-    console.log('[facturas] facturarLote — request recibido | ids:', ids.length);
-    const facturas = await facturasService.facturarLote(ids, {
-      numero,
-      fechaEmision,
-      vencimiento,
-      ajustesMonto,
-      incluyeIva,
-    });
+    console.log('[facturas] facturarLote — request recibido | ids:', dto.ids.length);
+    const facturas = await facturasService.facturarLote(dto);
     console.log('[facturas] facturarLote — completado | actualizadas:', facturas.length);
     res.json(facturas);
   } catch (err: unknown) {
     console.error('[facturas] Error en facturarLote:', err instanceof Error ? err.message : err);
     const message = err instanceof Error ? err.message : 'Error interno del servidor';
     let status = 500;
-    if (message.includes('ya existe')) status = 400;
-    else if (message.startsWith('DTO inválido')) status = 400;
+    if (message.startsWith('DTO inválido')) status = 400;
     else if (message.startsWith('No se pudo facturar el lote')) status = 409;
+    else if (message.includes('ya existe')) status = 400;
     res.status(status).json({ error: message });
   }
 }

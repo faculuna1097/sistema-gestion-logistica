@@ -2,7 +2,7 @@
 
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
-import { Factura, CreateFacturaDTO } from '../types';
+import { Factura, CreateFacturaDTO, FacturarDTO } from '../types';
 
 interface FiltrosFactura {
   tipo?: string;
@@ -206,17 +206,8 @@ export async function existeNumero(numero: string): Promise<boolean> {
   return result.rows.length > 0;
 }
 
-export async function facturarLote(
-  ids: number[],
-  datos: {
-    numero: string;
-    fechaEmision: string;
-    vencimiento: string;
-    ajustesMonto?: { id: number; monto: number }[];
-    incluyeIva?: boolean;
-  }
-): Promise<Factura[]> {
-  console.log(`[facturas] facturarLote — request recibido | ids: ${ids.length}, ajustes: ${datos.ajustesMonto?.length ?? 0}, incluyeIva: ${datos.incluyeIva ?? 'sin cambio'}`);
+export async function facturarLote(dto: FacturarDTO): Promise<Factura[]> {
+  console.log(`[facturas] facturarLote — request recibido | ids: ${dto.ids.length}, ajustes: ${dto.ajustesMonto?.length ?? 0}, incluyeIva: ${dto.incluyeIva ?? 'sin cambio'}`);
   const client: PoolClient = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -225,8 +216,8 @@ export async function facturarLote(
     //    Cada ajuste es un UPDATE independiente. Si algún ajuste apunta a una
     //    factura que no está en sin_facturar, el UPDATE no afecta filas y se
     //    descarta silenciosamente — el chequeo fuerte viene en el paso 2.
-    if (datos.ajustesMonto && datos.ajustesMonto.length > 0) {
-      for (const ajuste of datos.ajustesMonto) {
+    if (dto.ajustesMonto && dto.ajustesMonto.length > 0) {
+      for (const ajuste of dto.ajustesMonto) {
         await client.query(
           `UPDATE facturas SET monto = $1
            WHERE id = $2 AND estado = 'sin_facturar'`,
@@ -246,16 +237,16 @@ export async function facturarLote(
          incluye_iva   = COALESCE($4, incluye_iva)
        WHERE estado = 'sin_facturar' AND id = ANY($5)
        RETURNING ${SELECT}`,
-      [datos.numero, datos.fechaEmision, datos.vencimiento, datos.incluyeIva ?? null, ids]
+      [dto.numero, dto.fechaEmision, dto.vencimiento, dto.incluyeIva ?? null, dto.ids]
     );
 
     // 3. Defensa contra race conditions: todos los ids tienen que haber sido
     //    actualizados. Si alguno no estaba en sin_facturar (o no existía),
     //    ROLLBACK completo y error.
-    if (result.rows.length !== ids.length) {
+    if (result.rows.length !== dto.ids.length) {
       await client.query('ROLLBACK');
       throw new Error(
-        `No se pudo facturar el lote: se esperaban ${ids.length} facturas en estado sin_facturar, se actualizaron ${result.rows.length}`
+        `No se pudo facturar el lote: se esperaban ${dto.ids.length} facturas en estado sin_facturar, se actualizaron ${result.rows.length}`
       );
     }
 
