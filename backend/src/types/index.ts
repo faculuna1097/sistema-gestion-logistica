@@ -1,10 +1,9 @@
-// backend/src/types/index.ts 
+// backend/src/types/index.ts
 
-// reemplazá el bloque de FACTURAS — tipos de estado
+// TIPOS DE ESTADO
 export type TipoFactura = 'cobranza' | 'pago_fletero' | 'pago_servicio'
 export type EstadoFactura = 'sin_facturar' | 'facturada' | 'pagada'
-export type TipoInforme = 'cliente' | 'fletero';
-
+export type TipoInforme = 'cliente' | 'fletero'
 
 // CLIENTES
 export interface Cliente {
@@ -51,8 +50,8 @@ export interface Viaje {
   fleteroId: number
   costoFletero: number
   createdAt: string
-  numeroRemito: string | null              // ← nuevo
-  destinatario: string | null              // ← nuevo
+  numeroRemito: string | null
+  destinatario: string | null
   numeroFacturaCobranza: string | null
   estadoFacturaCobranza: EstadoFactura | null
   vencimientoCobranza: string | null
@@ -67,8 +66,15 @@ export interface CreateViajeDTO {
   valorCliente: number
   fleteroId: number
   costoFletero: number
-  numeroRemito?: string | null             // ← nuevo
-  destinatario?: string | null             // ← nuevo
+  numeroRemito?: string | null
+  destinatario?: string | null
+}
+
+export interface ViajeFilters {
+  clienteId?: number
+  fleteroId?: number
+  desde?: string   // formato YYYY-MM-DD
+  hasta?: string   // formato YYYY-MM-DD
 }
 
 // FACTURAS
@@ -91,63 +97,56 @@ export interface CreateFacturaDTO {
   tipo: TipoFactura
   clienteId?: number | null
   fleteroId?: number | null
-  viajeId?: number
+  viajeId?: number | null
   monto: number
-  descripcion?: string
-  numero: string | null
-  fechaEmision: string | null
-  vencimiento?: string
+  descripcion?: string | null
+  numero?: string | null
+  fechaEmision?: string | null
+  vencimiento?: string | null
 }
 
-// FILTROS DE VIAJES
-export interface ViajeFilters {
-  clienteId?: number
-  fleteroId?: number
-  desde?: string   // formato YYYY-MM-DD
-  hasta?: string   // formato YYYY-MM-DD
-}
-
-export interface Informe {
-  id: number;
-  codigo: string;              // "INF-2026-000042"
-  anio: number;
-  correlativo: number;
-  tipo: TipoInforme;
-  clienteId: number | null;
-  fleteroId: number | null;
-  rangoDesde: string;          // YYYY-MM-DD
-  rangoHasta: string;          // YYYY-MM-DD
-  createdAt: string;           // ISO string
-  viajeIds: number[];
-}
-
-export interface CreateInformeDTO {
-  tipo: TipoInforme;
-  clienteId: number | null;
-  fleteroId: number | null;
-  rangoDesde: string;
-  rangoHasta: string;
-  viajeIds: number[];
-}
-
-export interface InformeFilters {
-  tipo?: TipoInforme;
-  clienteId?: number;
-  fleteroId?: number;
-  anio?: number;
-}
-
-// FACTURAR LOTE (PATCH /facturas/facturar-lote)
+// FACTURAR (individual o lote — PATCH /facturas/:id/facturar y PATCH /facturas/facturar-lote)
 export interface AjusteMontoFactura {
   id: number
   monto: number
 }
 
-export interface FacturarLoteDTO {
+export interface FacturarDTO {
   ids: number[]
   numero: string
   fechaEmision: string          // YYYY-MM-DD
   vencimiento: string           // YYYY-MM-DD
   ajustesMonto?: AjusteMontoFactura[]
   incluyeIva?: boolean
+}
+
+// INFORMES
+export interface Informe {
+  id: number
+  codigo: string               // "INF-2026-000042"
+  anio: number
+  correlativo: number
+  tipo: TipoInforme
+  clienteId: number | null
+  fleteroId: number | null
+  rangoDesde: string           // YYYY-MM-DD
+  rangoHasta: string           // YYYY-MM-DD
+  createdAt: string            // ISO string
+  viajeIds: number[]
+}
+
+export interface CreateInformeDTO {
+  tipo: TipoInforme
+  clienteId: number | null
+  fleteroId: number | null
+  rangoDesde: string
+  rangoHasta: string
+  viajeIds: number[]
+}
+
+export interface InformeFilters {
+  tipo?: TipoInforme
+  clienteId?: number
+  fleteroId?: number
+  anio?: number
 }

@@ -1,5 +1,11 @@
-// frontend/src/types/index.ts 
+// frontend/src/types/index.ts
 
+// TIPOS DE ESTADO
+export type TipoFactura = 'cobranza' | 'pago_fletero' | 'pago_servicio'
+export type EstadoFactura = 'sin_facturar' | 'facturada' | 'pagada'
+export type TipoInforme = 'cliente' | 'fletero'
+
+// CLIENTES
 export interface Cliente {
   id: number
   nombre: string
@@ -17,6 +23,7 @@ export interface CreateClienteDTO {
   cuit?: string | null
 }
 
+// FLETEROS
 export interface Fletero {
   id: number
   nombre: string
@@ -34,6 +41,10 @@ export interface CreateFleteroDTO {
   cuit?: string | null
 }
 
+// VIAJES
+// clienteNombre y fleteroNombre: no los devuelve el backend, los resuelve la página
+// por cross-reference con el listado de clientes/fleteros. Deuda técnica anotada
+// (resolver cuando haya shared types backend-frontend).
 export interface Viaje {
   id: number
   fecha: string
@@ -44,8 +55,8 @@ export interface Viaje {
   fleteroNombre?: string
   costoFletero: number
   createdAt: string
-  numeroRemito: string | null              // ← nuevo
-  destinatario: string | null              // ← nuevo
+  numeroRemito: string | null
+  destinatario: string | null
   numeroFacturaCobranza: string | null
   estadoFacturaCobranza: EstadoFactura | null
   vencimientoCobranza: string | null
@@ -60,85 +71,73 @@ export interface CreateViajeDTO {
   valorCliente: number
   fleteroId: number
   costoFletero: number
-  numeroRemito?: string | null             // ← nuevo
-  destinatario?: string | null             // ← nuevo
+  numeroRemito?: string | null
+  destinatario?: string | null
 }
 
-export type TipoFactura = 'cobranza' | 'pago_fletero' | 'pago_servicio'
-export type EstadoFactura = 'sin_facturar' | 'facturada' | 'pagada'
+export interface ViajeFilters {
+  clienteId?: number
+  fleteroId?: number
+  desde?: string   // YYYY-MM-DD
+  hasta?: string   // YYYY-MM-DD
+}
 
+// FACTURAS
+// Nota de dominio: `monto` es neto. El total con IVA se calcula al vuelo como
+// monto * 1.21 cuando `incluyeIva = true`. Documentado en convenciones_tecnicas.
 export interface Factura {
   id: number
   tipo: TipoFactura
   clienteId: number | null
   fleteroId: number | null
   viajeId: number | null
-  monto: number                // monto NETO. Para total con IVA: monto * 1.21 si incluyeIva = true
+  monto: number
   descripcion: string | null
   numero: string | null
   fechaEmision: string | null
   vencimiento: string | null
   estado: EstadoFactura
-  incluyeIva: boolean          // columna NOT NULL DEFAULT true en DB
+  incluyeIva: boolean
 }
 
-// Ajuste opcional de monto al emitir un lote.
-// Permite editar el monto de una factura específica antes de la transición sin_facturar → facturada.
-// El `id` debe pertenecer al array `ids` del FacturarDTO. El backend valida esto.
+// Ajuste de monto de una factura específica al emitir un lote.
+// El `id` debe pertenecer al array `ids` del FacturarDTO (validado en backend).
 export interface AjusteMontoFactura {
   id: number
   monto: number
 }
 
-// FacturarDTO se usa para dos endpoints distintos:
-//   - PATCH /facturas/:id/facturar   (individual)
-//   - PATCH /facturas/facturar-lote  (lote, con ajustesMonto e incluyeIva opcionales)
-//
-// Los dos campos nuevos (ajustesMonto, incluyeIva) son opcionales y solo se usan
-// desde el wizard del rediseño. El endpoint individual los ignora — si en el futuro
-// hace falta soportar IVA desde un punto de entrada individual, se amplía el service
-// del backend (hoy solo facturar-lote los procesa).
-//
-// Nota de naming: en el backend este DTO se llama FacturarLoteDTO. La asimetría está
-// anotada como deuda técnica chica para un pase de unificación futuro.
+// FacturarDTO se usa para PATCH /facturas/:id/facturar (individual) y
+// PATCH /facturas/facturar-lote (lote). Los campos `ajustesMonto` e `incluyeIva`
+// solo los procesa el endpoint de lote; el individual los ignora.
 export interface FacturarDTO {
   numero: string
   fechaEmision: string
   vencimiento: string
-  ajustesMonto?: AjusteMontoFactura[]   // solo aplicable a facturar-lote
-  incluyeIva?: boolean                  // solo aplicable a facturar-lote; aplica a todo el lote
-}
-
-// FILTROS
-// Debe mantenerse sincronizado con backend/src/types/index.ts
-export interface ViajeFilters {
-  clienteId?: number
-  fleteroId?: number
-  desde?: string   // formato YYYY-MM-DD
-  hasta?: string   // formato YYYY-MM-DD
+  ajustesMonto?: AjusteMontoFactura[]
+  incluyeIva?: boolean
 }
 
 // INFORMES
-export type TipoInforme = 'cliente' | 'fletero'
-
-// Una fila del informe cuando el titular es un Cliente
+// Fila del informe cuando el titular es un Cliente
 export interface InformeClienteFila {
   viajeId: number
   fecha: string                // YYYY-MM-DD
   numeroRemito: string | null
   destinatario: string | null
-  valor: number                // equivale a valor_cliente
+  valor: number                // valor_cliente del viaje
 }
 
-// Una fila del informe cuando el titular es un Fletero
+// Fila del informe cuando el titular es un Fletero
 export interface InformeFleteroFila {
   viajeId: number
   fecha: string                // YYYY-MM-DD
-  clienteNombre: string        // a qué cliente se le hizo el viaje
-  valor: number                // equivale a costo_fletero
+  clienteNombre: string
+  valor: number                // costo_fletero del viaje
 }
 
-// Informe completo — el objeto que se muestra en pantalla y eventualmente se exporta a PDF
+// Informe renderizable — el objeto que consume la UI y la exportación a PDF.
+// Distinto de `Informe` (la entidad persistida que solo tiene IDs y metadata).
 export interface InformeData {
   tipo: TipoInforme
   actor: { id: number; nombre: string }
@@ -149,13 +148,8 @@ export interface InformeData {
   total: number                // subtotal + iva
 }
 
-// ============================================================
-// Informes persistidos (tabla `informes` en la DB)
+// Entidad persistida (tabla `informes` en la DB).
 // Debe mantenerse sincronizado con backend/src/types/index.ts
-// ============================================================
-
-// La entidad persistida tal como la devuelve el backend.
-// Distinta de InformeData (que es el informe ya renderizado con filas + totales).
 export interface Informe {
   id: number
   codigo: string               // "INF-2026-000042"
