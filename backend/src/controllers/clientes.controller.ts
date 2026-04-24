@@ -87,25 +87,27 @@ export async function update(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function remove(req: Request, res: Response): Promise<void> {
-  try {
-    const id = parseIdOr400(req, res);
-    if (id === null) return;
+  export async function remove(req: Request, res: Response): Promise<void> {
+    try {
+      const id = parseIdOr400(req, res);
+      if (id === null) return;
 
-    const cliente = await clientesService.remove(id);
+      const cliente = await clientesService.remove(id);
 
-    if (!cliente) {
-      res.status(404).json({ error: 'Cliente no encontrado' });
-      return;
-    }
+      if (!cliente) {
+        res.status(404).json({ error: 'Cliente no encontrado' });
+        return;
+      }
 
-    res.json(cliente);
-  } catch (err: unknown) {
-    if (isPgError(err) && err.code === '23503') {
-      res.status(400).json({ error: 'No se puede eliminar: el cliente tiene viajes asociados' });
-      return;
-    }
-    console.error('[clientes] Error en remove:', err instanceof Error ? err.message : err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+      res.status(204).send();
+    } catch (err: unknown) {
+      if (isPgError(err) && err.code === '23503') {
+        res.status(400).json({
+          error: 'No se puede eliminar: el cliente tiene registros relacionados (viajes, facturas o informes)' 
+        });
+        return;
+      }
+      console.error('[clientes] Error en remove:', err instanceof Error ? err.message : err);
+      res.status(500).json({ error: 'Error interno del servidor' });
   }
 }

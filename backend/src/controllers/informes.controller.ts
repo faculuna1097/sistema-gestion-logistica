@@ -159,7 +159,7 @@ export const informesController = {
         res.status(404).json({ error: 'Informe no encontrado' });
         return;
       }
-      res.json(informe);
+      res.status(204).send();
     } catch (err: unknown) {
       console.error('[informes] Error en eliminar:', err instanceof Error ? err.message : err);
       res.status(500).json({ error: 'Error al eliminar informe' });

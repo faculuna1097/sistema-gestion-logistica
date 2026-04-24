@@ -169,7 +169,7 @@ export const viajesController = {
         res.status(404).json({ error: 'Viaje no encontrado' });
         return;
       }
-      res.json(viaje);
+      res.status(204).send();
     } catch (err: unknown) {
       console.error('[viajes] Error en eliminar:', err instanceof Error ? err.message : err);
       res.status(500).json({ error: 'Error al eliminar viaje' });
