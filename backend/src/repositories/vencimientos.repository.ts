@@ -1,4 +1,4 @@
-// src/repositories/vencimientos.repository.ts
+// backend/src/repositories/vencimientos.repository.ts
 
 import { pool } from '../config/db';
 
@@ -33,7 +33,7 @@ export async function getVencidas(): Promise<VencimientoRow[]> {
       f.tipo,
       COALESCE(c.nombre, fl.nombre) AS titular,
       f.numero,
-      SUM(f.monto) AS monto,
+      ROUND(SUM(f.monto * CASE WHEN f.incluye_iva THEN 1.21 ELSE 1 END)::numeric, 2) AS monto,
       f.vencimiento
     FROM facturas f
     LEFT JOIN clientes c  ON f.cliente_id = c.id
@@ -57,7 +57,7 @@ export async function getDelMes(mes: string): Promise<VencimientoRow[]> {
       f.tipo,
       COALESCE(c.nombre, fl.nombre) AS titular,
       f.numero,
-      SUM(f.monto) AS monto,
+      ROUND(SUM(f.monto * CASE WHEN f.incluye_iva THEN 1.21 ELSE 1 END)::numeric, 2) AS monto,
       f.vencimiento
     FROM facturas f
     LEFT JOIN clientes c  ON f.cliente_id = c.id

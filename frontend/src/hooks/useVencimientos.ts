@@ -1,4 +1,4 @@
-// src/hooks/useVencimientos.ts
+// frontend/src/hooks/useVencimientos.ts
 
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../services/api';
