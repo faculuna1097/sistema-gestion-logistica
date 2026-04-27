@@ -1,18 +1,27 @@
-// frontend/src/pages/Vencimientos/VencimientosPage.tsx 
+// frontend/src/pages/Vencimientos/VencimientosPage.tsx
 
 import { useVencimientos } from '../../hooks/useVencimientos'
 import type { VencimientoRow, SemanaGroup } from '../../hooks/useVencimientos'
 import { theme } from '../../theme'
+import MesNavigator from '../../components/MesNavigator'
+import OrdenToggle from '../../components/OrdenToggle'
 
-const MESES = [
-  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
-  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
-]
+// ──────────────── Estilos de "semana actual" ────────────────
 
-function formatMes(mes: string): string {
-  const [anio, mesNum] = mes.split('-').map(Number)
-  return `${MESES[mesNum - 1]} ${anio}`
-}
+/**
+ * Intensidad del verde aplicado a la semana actual. Subir para destacar más,
+ * bajar para que sea más sutil. Las filas usan esta intensidad; el subtotal
+ * usa una versión amplificada (proporción fija 2.5x) para mantenerse encima.
+ *
+ * Rango razonable: 0.03 (apenas visible) — 0.15 (saturado).
+ */
+const INTENSIDAD_VERDE_SEMANA_ACTUAL = 0.09
+
+/** Primario del proyecto en RGB, para componer rgba() sin repetir el valor. */
+const PRIMARY_RGB = '26, 122, 74' // theme.colors.primary = #1a7a4a
+
+const BG_FILA_SEMANA_ACTUAL = `rgba(${PRIMARY_RGB}, ${INTENSIDAD_VERDE_SEMANA_ACTUAL})`
+const BG_SUBTOTAL_SEMANA_ACTUAL = `rgba(${PRIMARY_RGB}, ${INTENSIDAD_VERDE_SEMANA_ACTUAL * 3})`
 
 function formatMonto(monto: number): string {
   return monto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
@@ -20,9 +29,9 @@ function formatMonto(monto: number): string {
 
 function diasHastaVencimiento(vencimiento: string): number {
   const hoy = new Date()
-  hoy.setHours(0,0,0,0)
+  hoy.setHours(0, 0, 0, 0)
   const vence = new Date(vencimiento + 'T12:00:00')
-  return Math.round((vence.getTime() - hoy.getTime()) / (1000*60*60*24))
+  return Math.round((vence.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
 }
 
 const thStyle: React.CSSProperties = {
@@ -52,9 +61,31 @@ const tableWrapper: React.CSSProperties = {
   boxShadow: theme.shadow.sm,
 }
 
-function FilaVencimiento({ fila }: { fila: VencimientoRow }) {
+function FilaVencimiento({ fila, esActual = false }: { fila: VencimientoRow; esActual?: boolean }) {
   const dias = diasHastaVencimiento(fila.vencimiento)
 
+  if (esActual) {
+    // Sin hover: el fondo ya está pintado y no queremos competencia visual.
+    return (
+      <tr style={{ background: BG_FILA_SEMANA_ACTUAL }}>
+        <td style={{ ...tdStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
+          {fila.titular}
+        </td>
+        <td style={tdStyle}>{fila.numero ?? '—'}</td>
+        <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+          <span>{fila.vencimiento}</span>
+          <span style={{ marginLeft: 8, fontSize: theme.font.size.xs, fontWeight: theme.font.weight.semibold, color: dias <= 5 ? theme.colors.danger : theme.colors.textMuted }}>
+            {dias < 0 ? `hace ${Math.abs(dias)}d` : `en ${dias}d`}
+          </span>
+        </td>
+        <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
+          {formatMonto(fila.monto)}
+        </td>
+      </tr>
+    )
+  }
+
+  // Comportamiento original con hover para semanas no actuales.
   return (
     <tr
       style={{ transition: 'background 0.1s' }}
@@ -78,13 +109,16 @@ function FilaVencimiento({ fila }: { fila: VencimientoRow }) {
   )
 }
 
-function FilaSubtotal({ label, subtotal }: { label: string; subtotal: number }) {
+function FilaSubtotal({ label, subtotal, esActual }: { label: string; subtotal: number; esActual: boolean }) {
+  const bgColor = esActual ? BG_SUBTOTAL_SEMANA_ACTUAL : '#fef9ec'
+  const textColor = esActual ? theme.colors.primary : '#92660a'
+
   return (
-    <tr style={{ background: '#fef9ec' }}>
-      <td colSpan={3} style={{ ...tdStyle, fontWeight: theme.font.weight.medium, color: '#92660a' }}>
-        {label} — Subtotal
+    <tr style={{ background: bgColor }}>
+      <td colSpan={3} style={{ ...tdStyle, fontWeight: theme.font.weight.semibold, color: textColor }}>
+        {label}
       </td>
-      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: theme.font.weight.medium, fontVariantNumeric: 'tabular-nums', color: '#92660a' }}>
+      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: theme.font.weight.semibold, fontVariantNumeric: 'tabular-nums', color: textColor }}>
         {formatMonto(subtotal)}
       </td>
     </tr>
@@ -141,7 +175,8 @@ function TablaVencimientos({ titulo, vencidas, semanas, total }: {
         fontFamily: theme.font.family,
         fontSize: theme.font.size.lg,
         fontWeight: theme.font.weight.semibold,
-        color: theme.colors.textPrimary
+        color: theme.colors.textPrimary,
+        textAlign: 'center'
       }}>
         {titulo}
       </h2>
@@ -150,7 +185,7 @@ function TablaVencimientos({ titulo, vencidas, semanas, total }: {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
-              {['Titular','N° Factura','Vencimiento','Monto'].map(col => (
+              {['Titular', 'N° Factura', 'Vencimiento', 'Monto'].map(col => (
                 <th key={col} style={col === 'Monto' ? { ...thStyle, textAlign: 'right' } : thStyle}>
                   {col}
                 </th>
@@ -171,8 +206,15 @@ function TablaVencimientos({ titulo, vencidas, semanas, total }: {
 
             {semanas.map(semana => (
               <>
-                {semana.filas.map(f => <FilaVencimiento key={f.id} fila={f} />)}
-                <FilaSubtotal key={`sub-${semana.label}`} label={semana.label} subtotal={semana.subtotal} />
+                {semana.filas.map(f => (
+                  <FilaVencimiento key={f.id} fila={f} esActual={semana.esActual} />
+                ))}
+                <FilaSubtotal
+                  key={`sub-${semana.label}`}
+                  label={semana.label}
+                  subtotal={semana.subtotal}
+                  esActual={semana.esActual}
+                />
               </>
             ))}
 
@@ -195,7 +237,9 @@ function TablaVencimientos({ titulo, vencidas, semanas, total }: {
 
 export default function VencimientosPage() {
   const {
-    mes, navegarMes, loading, error,
+    mes, setMes,
+    orden, setOrden,
+    loading, error,
     vencidasCobranza, vencidasPagos,
     semanasCobranza, semanasPagos,
     totalCobranza, totalPagos
@@ -204,34 +248,21 @@ export default function VencimientosPage() {
   return (
     <div style={{ padding: '32px' }}>
 
-      {/* Header: grid 3 columnas — igual que ViajesPage */}
+      {/* Header: grid 3 columnas — izquierda vacía, centro navegador, derecha toggle de orden */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '24px' }}>
 
-        {/* Izquierda: vacío */}
-        <div />
-
-        {/* Centro: navegador de mes */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => navegarMes(-1)}
-            style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, color: theme.colors.textSecondary, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
-          >
-            ←
-          </button>
-          <span style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, fontWeight: theme.font.weight.semibold, color: theme.colors.textPrimary, minWidth: '140px', textAlign: 'center' }}>
-            {formatMes(mes)}
-          </span>
-          <button
-            onClick={() => navegarMes(1)}
-            style={{ fontFamily: theme.font.family, fontSize: theme.font.size.md, color: theme.colors.textSecondary, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
-          >
-            →
-          </button>
+        {/* Izquierda: toggle de orden */}
+        <div >
+          <OrdenToggle orden={orden} onChange={setOrden} />
         </div>
 
-        {/* Derecha: vacío */}
+        {/* Centro: navegador de mes */}
+        <MesNavigator mes={mes} onChange={(nuevo) => nuevo !== null && setMes(nuevo)} />
+
+        {/* Derecha: vacio */}
         <div />
       </div>
+      
 
       {loading && <div style={{ color: theme.colors.textMuted }}>Cargando...</div>}
       {error && <div style={{ color: theme.colors.danger }}>{error}</div>}
