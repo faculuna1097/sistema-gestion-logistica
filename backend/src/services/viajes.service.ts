@@ -1,4 +1,5 @@
-// services/viajes.service.ts
+// backend/services/viajes.service.ts
+
 import { viajesRepository } from '../repositories/viajes.repository';
 import * as facturasRepository from '../repositories/facturas.repository';
 import { Viaje, CreateViajeDTO, ViajeFilters } from '../types';

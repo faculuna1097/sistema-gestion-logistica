@@ -27,8 +27,9 @@ export function useViajes() {
 // AGREGAR VIAJE
   const crearViaje = async (dto: CreateViajeDTO) => {
     const nuevo = await api.post<Viaje>('/viajes', dto)
-    setViajes(prev => [nuevo, ...prev])
-    return nuevo
+    const completo = await api.get<Viaje>(`/viajes/${nuevo.id}`)
+    setViajes(prev => [completo, ...prev])
+    return completo
   }
 
 // EDITAR VIAJE

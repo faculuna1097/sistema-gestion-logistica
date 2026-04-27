@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '../../components/Button'
 import { FormField, inputStyle } from '../../components/FormFields'
 import { theme } from '../../theme'
+import { validateViajeForm } from '../../utils/validation'
 import type { Viaje, CreateViajeDTO, Cliente, Fletero, EstadoFactura } from '../../types'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ function viajeToForm(v: Viaje): FormState {
 
 // Mensaje según el estado de una factura (null = sin factura asociada, no debería pasar en edición real)
 function mensajeBloqueo(estado: EstadoFactura | null): string | null {
-  if (estado === 'facturada') return 'Factura emitida — revertí desde el módulo de Facturas para editar.'
+  if (estado === 'facturada') return 'Factura emitida — revertí desde la sección de Facturas para editar.'
   if (estado === 'pagada')    return 'Factura cobrada — estos campos quedan congelados.'
   return null
 }
@@ -80,14 +81,16 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
   const mensajePagoFletero = isEdit ? mensajeBloqueo(viaje!.estadoFacturaPagoFletero) : null
 
   const handleSubmit = async () => {
-    if (!form.fecha) { setFormError('La fecha es requerida'); return }
+    const errors = validateViajeForm(
+      form,
+      !isEdit || puedeEditarCobranza,
+      !isEdit || puedeEditarPagoFletero
+    )
 
-    if (!isEdit) {
-      // Validaciones que solo aplican al crear (en edición pueden estar bloqueados)
-      if (!form.clienteId)                                      { setFormError('Seleccioná un cliente');         return }
-      if (!form.valorCliente || Number(form.valorCliente) <= 0) { setFormError('Ingresá el valor del viaje');    return }
-      if (!form.fleteroId)                                      { setFormError('Seleccioná un fletero');         return }
-      if (!form.costoFletero || Number(form.costoFletero) <= 0) { setFormError('Ingresá el costo del fletero'); return }
+    const primerError = Object.values(errors)[0]
+    if (primerError) {
+      setFormError(primerError)
+      return
     }
 
     setSaving(true)
@@ -97,9 +100,9 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
         // Solo mando los campos que el usuario efectivamente puede editar.
         // Construimos el dto incrementalmente.
         const dto: Partial<CreateViajeDTO> = {
-          fecha:         form.fecha,
-          numeroRemito:  form.numeroRemito || null,
-          destinatario:  form.destinatario || null,
+          fecha:        form.fecha,
+          numeroRemito: form.numeroRemito || null,
+          destinatario: form.destinatario || null,
         }
 
         if (puedeEditarCobranza) {
@@ -115,13 +118,13 @@ export function ViajeForm({ viaje, clientes, fleteros, onSubmit, onCancel }: Via
         await onSubmit(dto)
       } else {
         await onSubmit({
-          fecha:         form.fecha,
-          clienteId:     Number(form.clienteId),
-          valorCliente:  Number(form.valorCliente),
-          fleteroId:     Number(form.fleteroId),
-          costoFletero:  Number(form.costoFletero),
-          numeroRemito:  form.numeroRemito || null,
-          destinatario:  form.destinatario || null,
+          fecha:        form.fecha,
+          clienteId:    Number(form.clienteId),
+          valorCliente: Number(form.valorCliente),
+          fleteroId:    Number(form.fleteroId),
+          costoFletero: Number(form.costoFletero),
+          numeroRemito: form.numeroRemito || null,
+          destinatario: form.destinatario || null,
         })
       }
     } catch (err: unknown) {

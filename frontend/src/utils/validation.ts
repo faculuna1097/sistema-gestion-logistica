@@ -1,4 +1,4 @@
-// src/utils/validation.ts
+// frontend/src/utils/validation.ts
 
 interface ContactFormFields {
   nombre: string
@@ -38,4 +38,53 @@ export function validateContactForm(form: ContactFormFields): ContactFormErrors 
 
 export function hasErrors(errors: ContactFormErrors): boolean {
   return Object.keys(errors).length > 0
+}
+
+// ─── Validación de formulario de viajes ───────────────────────────────────────
+
+export interface ViajeFormFields {
+  fecha: string
+  clienteId: string
+  valorCliente: string
+  fleteroId: string
+  costoFletero: string
+}
+
+export type ViajeFormErrors = Partial<Record<keyof ViajeFormFields, string>>
+
+/**
+ * Valida el formulario de creación/edición de viaje.
+ * puedeEditarCobranza y puedeEditarPagoFletero controlan qué campos
+ * son obligatorios según el estado de las facturas asociadas.
+ */
+export function validateViajeForm(
+  form: ViajeFormFields,
+  puedeEditarCobranza: boolean,
+  puedeEditarPagoFletero: boolean
+): ViajeFormErrors {
+  const errors: ViajeFormErrors = {}
+
+  if (!form.fecha) {
+    errors.fecha = 'La fecha es requerida'
+  }
+
+  if (puedeEditarCobranza) {
+    if (!form.clienteId) {
+      errors.clienteId = 'Seleccioná un cliente'
+    }
+    if (form.valorCliente === '' || Number(form.valorCliente) < 0) {
+      errors.valorCliente = 'Ingresá el valor del viaje'
+    }
+  }
+
+  if (puedeEditarPagoFletero) {
+    if (!form.fleteroId) {
+      errors.fleteroId = 'Seleccioná un fletero'
+    }
+    if (form.costoFletero === '' || Number(form.costoFletero) < 0) {
+      errors.costoFletero = 'Ingresá el costo del fletero'
+    }
+  }
+
+  return errors
 }
