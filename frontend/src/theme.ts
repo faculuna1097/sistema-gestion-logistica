@@ -10,6 +10,7 @@ export const theme = {
     sidebarHover: '#162e1e',
     sidebarBorder: '#1a3d25',
 
+    
     // Main
     pageBg: '#f4f5f2',
     surface: '#ffffff',
@@ -73,6 +74,7 @@ export const theme = {
     lg: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.04)',
   },
   sidebar: {
-    width: '220px',
+    width: '200px',
+    widthCollapsed: '64px',
   },
 }
