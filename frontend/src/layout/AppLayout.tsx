@@ -63,7 +63,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   lineHeight: 1.2,
                   whiteSpace: 'nowrap',
                 }}>
-                  Logística Tute
+                  Logística Cigaina
                 </div>
               </div>
             )}
