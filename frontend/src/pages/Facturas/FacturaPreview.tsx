@@ -2,7 +2,8 @@
 
 import { theme } from '../../theme'
 import { formatFecha, formatMoney } from '../../utils/format'
-import { thStyle, tdBaseStyle, tableWrapper, rowTotalStyle } from '../../components/tableStyles'
+import { thStyle, tdBaseStyle, tableWrapper } from '../../components/tableStyles'
+import { BloqueTotales } from '../../components/BloqueTotales'
 import type { FacturaPreviewData, FacturaClienteFila, FacturaFleteroFila } from '../../hooks/useFacturaWizard'
 
 // ─── Subcomponentes de tabla ──────────────────────────────────────────────────
@@ -217,45 +218,14 @@ export function FacturaPreview({ factura, numero, fechaEmision, vencimiento, cui
       </div>
 
       {/* Bloque de totales — condicional según incluyeIva.
-          Con IVA: Subtotal + IVA + Total (igual que InformePreview).
+          Con IVA: Subtotal + IVA + Total.
           Sin IVA: solo Total destacado (las facturas C no discriminan IVA). */}
-      <div style={{
-        background: theme.colors.surface,
-        border: `1px solid ${theme.colors.border}`,
-        borderRadius: theme.radius.lg,
-        boxShadow: theme.shadow.sm,
-        overflow: 'hidden',
-      }}>
-        {factura.incluyeIva && (
-          <>
-            <div style={{ ...rowTotalStyle, borderTop: 'none' }}>
-              <span>Subtotal</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                {formatMoney(factura.subtotal)}
-              </span>
-            </div>
-            <div style={rowTotalStyle}>
-              <span>IVA (21%)</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                {formatMoney(factura.iva)}
-              </span>
-            </div>
-          </>
-        )}
-        <div style={{
-          ...rowTotalStyle,
-          borderTop: factura.incluyeIva ? `1px solid ${theme.colors.borderLight}` : 'none',
-          background: theme.colors.sidebarBg,
-          color: '#fff',
-          fontWeight: theme.font.weight.semibold,
-          fontSize: theme.font.size.base,
-        }}>
-          <span>Total</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {formatMoney(factura.total)}
-          </span>
-        </div>
-      </div>
+      <BloqueTotales
+        subtotal={factura.subtotal}
+        iva={factura.iva}
+        total={factura.total}
+        incluyeIva={factura.incluyeIva}
+      />
     </div>
   )
 }

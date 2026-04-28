@@ -8,7 +8,7 @@ import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import MesNavigator from '../../components/MesNavigator'
 import OrdenToggle from '../../components/OrdenToggle'
-import { theme } from '../../theme'
+import { theme, SEMANA_ACTUAL } from '../../theme'
 import { ViajeForm } from './ViajeForm'
 import { ViajeDetailModal } from './ViajeDetailModal'
 import { getEstadoVisual, LIMITE_POR_VENCER } from '../../utils/estadoFactura'
@@ -27,13 +27,8 @@ const ROW_HOVER_DARKEN = 0.05
 const GAP_ENTRE_FILAS_HEADER = '32px'    // ← entre las dos filas del header
 const GAP_ENTRE_HEADER_Y_TABLA = '8px'  // ← entre el header y la tabla
 
-// ─── Estilos de "semana actual" (espejado de VencimientosPage) ────────────────
-// Deuda técnica anotada: estas constantes están duplicadas en VencimientosPage.
-// Cuando aparezca un tercer consumidor, extraer a theme.ts o utils/colores.ts.
-
-const INTENSIDAD_VERDE_SEMANA_ACTUAL = 0.06
-const PRIMARY_RGB = '26, 122, 74' // theme.colors.primary = #1a7a4a
-const BG_HEADER_SEMANA_ACTUAL = `rgba(${PRIMARY_RGB}, ${INTENSIDAD_VERDE_SEMANA_ACTUAL * 2.5})`
+// ─── Estilos de "semana actual" ───────────────────────────────────────────────
+// Constantes compartidas con VencimientosPage. Definidas en theme.ts como SEMANA_ACTUAL.
 
 // ─── Estilos de la fila divisoria entre semanas ───────────────────────────────
 
@@ -309,7 +304,7 @@ export function ViajesPage() {
                 const esActual = grupo.semana.esActual
                 const caret = expandida ? '▼' : '▶'
 
-                const headerBg = esActual ? BG_HEADER_SEMANA_ACTUAL : DIVISORIA_BG_DEFAULT
+                const headerBg = esActual ? SEMANA_ACTUAL.bgDestacado : DIVISORIA_BG_DEFAULT
                 const headerColor = esActual ? theme.colors.primary : DIVISORIA_COLOR_DEFAULT
 
                 return (

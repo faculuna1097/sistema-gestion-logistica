@@ -2,7 +2,8 @@
 
 import { theme } from '../../theme'
 import { formatFecha, formatMoney } from '../../utils/format'
-import { thStyle, tdBaseStyle, tableWrapper, rowTotalStyle } from '../../components/tableStyles'
+import { thStyle, tdBaseStyle, tableWrapper } from '../../components/tableStyles'
+import { BloqueTotales } from '../../components/BloqueTotales'
 import type { InformeData, InformeClienteFila, InformeFleteroFila } from '../../types'
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
@@ -131,38 +132,11 @@ export function InformePreview({ informe }: Props) {
       </div>
 
       {/* Bloque de totales */}
-      <div style={{
-        background: theme.colors.surface,
-        border: `1px solid ${theme.colors.border}`,
-        borderRadius: theme.radius.lg,
-        boxShadow: theme.shadow.sm,
-        overflow: 'hidden',
-      }}>
-        <div style={{ ...rowTotalStyle, borderTop: 'none' }}>
-          <span>Subtotal</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-            {formatMoney(informe.subtotal)}
-          </span>
-        </div>
-        <div style={rowTotalStyle}>
-          <span>IVA (21%)</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-            {formatMoney(informe.iva)}
-          </span>
-        </div>
-        <div style={{
-          ...rowTotalStyle,
-          background: '#0d2b1a',
-          color: '#fff',
-          fontWeight: theme.font.weight.semibold,
-          fontSize: theme.font.size.base,
-        }}>
-          <span>Total</span>
-          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-            {formatMoney(informe.total)}
-          </span>
-        </div>
-      </div>
+      <BloqueTotales
+        subtotal={informe.subtotal}
+        iva={informe.iva}
+        total={informe.total}
+      />
     </div>
   )
 }

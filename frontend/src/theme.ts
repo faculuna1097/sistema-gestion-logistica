@@ -78,3 +78,21 @@ export const theme = {
     widthCollapsed: '64px',
   },
 }
+
+// ─── Color de "semana actual" ─────────────────────────────────────────────────
+// Usado en tablas con agrupamiento por semana (ViajesPage, VencimientosPage).
+// Una sola fuente de verdad para mantener consistencia visual entre páginas.
+//
+// `bgFila`: intensidad base — para áreas grandes (filas enteras).
+// `bgDestacado`: intensidad × 2.5 — para acentos (header de semana, subtotal).
+//
+// Para ajustar la familia entera: cambiar INTENSIDAD_BASE y regenerar
+// los strings rgba (PRIMARY_RGB se mantiene mientras el primary no cambie).
+const PRIMARY_RGB = '26, 122, 74' // = #1a7a4a
+const INTENSIDAD_BASE = 0.06
+const MULTIPLICADOR_DESTACADO = 2.5
+
+export const SEMANA_ACTUAL = {
+  bgFila:      `rgba(${PRIMARY_RGB}, ${INTENSIDAD_BASE})`,
+  bgDestacado: `rgba(${PRIMARY_RGB}, ${INTENSIDAD_BASE * MULTIPLICADOR_DESTACADO})`,
+}

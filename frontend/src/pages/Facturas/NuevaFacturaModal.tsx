@@ -1,17 +1,21 @@
 // frontend/src/pages/Facturas/NuevaFacturaModal.tsx
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
 import { useFacturaWizard, calcularFactura } from '../../hooks/useFacturaWizard'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
+import { PillButton } from '../../components/PillButton'
 import { FormField, inputStyle } from '../../components/FormFields'
-import { theme } from '../../theme'
+import { useCheckboxMasterRef } from '../../hooks/useCheckboxMasterRef'
 import { formatFecha, formatMoney } from '../../utils/format'
 import { getRangoDefault, sumarDias } from '../../utils/fechas'
-import { thStyle, tdBaseStyle, rowTotalStyle } from '../../components/tableStyles'
+import { thStyle, tdBaseStyle } from '../../components/tableStyles'
+import { BloqueTotales } from '../../components/BloqueTotales'
+import { theme } from '../../theme'
 import type { TipoInforme, FacturarDTO, Factura, AjusteMontoFactura } from '../../types'
+
 
 // ─── Estilos locales ──────────────────────────────────────────────────────────
 
@@ -31,28 +35,6 @@ const montoInputStyle: React.CSSProperties = {
 }
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
-
-function TipoButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        fontFamily: theme.font.family,
-        fontSize: theme.font.size.base,
-        fontWeight: active ? theme.font.weight.semibold : theme.font.weight.medium,
-        padding: '10px 32px',
-        borderRadius: theme.radius.md,
-        border: `2px solid ${active ? theme.colors.primary : theme.colors.border}`,
-        background: active ? theme.colors.primary : theme.colors.surface,
-        color: active ? '#fff' : theme.colors.textSecondary,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-      }}
-    >
-      {label}
-    </button>
-  )
-}
 
 function BreadcrumbPaso({ n, label, activo, completado }: { n: number; label: string; activo: boolean; completado: boolean }) {
   const color = activo ? theme.colors.primary : completado ? theme.colors.textSecondary : theme.colors.textMuted
@@ -184,12 +166,7 @@ export function NuevaFacturaModal({ open, onClose, onEmitir }: Props) {
     }
   }
 
-  const checkboxMasterRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (checkboxMasterRef.current) {
-      checkboxMasterRef.current.indeterminate = algunosSeleccionados
-    }
-  }, [algunosSeleccionados])
+  const checkboxMasterRef = useCheckboxMasterRef(algunosSeleccionados)
 
   // ── Avanzar a paso 3 ─────────────────────────────────────────────────────
   const handleAvanzarAPaso3 = () => {
@@ -374,8 +351,8 @@ export function NuevaFacturaModal({ open, onClose, onEmitir }: Props) {
               Tipo de factura
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <TipoButton label="Cliente" active={tipo === 'cliente'} onClick={() => handleCambiarTipo('cliente')} />
-              <TipoButton label="Fletero" active={tipo === 'fletero'} onClick={() => handleCambiarTipo('fletero')} />
+              <PillButton label="Cliente" active={tipo === 'cliente'} onClick={() => handleCambiarTipo('cliente')} />
+              <PillButton label="Fletero" active={tipo === 'fletero'} onClick={() => handleCambiarTipo('fletero')} />
             </div>
           </div>
 
@@ -677,43 +654,13 @@ export function NuevaFacturaModal({ open, onClose, onEmitir }: Props) {
           </div>
 
           {/* Bloque de totales — recalculado en vivo */}
-          <div style={{
-            background: theme.colors.surface,
-            border: `1px solid ${theme.colors.border}`,
-            borderRadius: theme.radius.lg,
-            boxShadow: theme.shadow.sm,
-            overflow: 'hidden',
-            marginBottom: '24px',
-          }}>
-            {incluyeIva && (
-              <>
-                <div style={{ ...rowTotalStyle, borderTop: 'none' }}>
-                  <span>Subtotal</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                    {formatMoney(preview.subtotal)}
-                  </span>
-                </div>
-                <div style={rowTotalStyle}>
-                  <span>IVA (21%)</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                    {formatMoney(preview.iva)}
-                  </span>
-                </div>
-              </>
-            )}
-            <div style={{
-              ...rowTotalStyle,
-              borderTop: incluyeIva ? `1px solid ${theme.colors.borderLight}` : 'none',
-              background: theme.colors.sidebarBg,
-              color: '#fff',
-              fontWeight: theme.font.weight.semibold,
-              fontSize: theme.font.size.base,
-            }}>
-              <span>Total</span>
-              <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {formatMoney(preview.total)}
-              </span>
-            </div>
+          <div style={{ marginBottom: '24px' }}>
+            <BloqueTotales
+              subtotal={preview.subtotal}
+              iva={preview.iva}
+              total={preview.total}
+              incluyeIva={incluyeIva}
+            />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>

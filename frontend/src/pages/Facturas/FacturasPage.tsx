@@ -10,6 +10,7 @@ import type { FacturaPreviewData } from '../../hooks/useFacturaWizard'
 import { Button } from '../../components/Button'
 import { Modal } from '../../components/Modal'
 import { TipoBadge } from '../../components/Badge'
+import { PillButton } from '../../components/PillButton'
 import { NuevaFacturaModal } from './NuevaFacturaModal'
 import { FacturaDetailModal } from './FacturaDetailModal'
 import { theme } from '../../theme'
@@ -58,28 +59,6 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
         No hay registros
       </td>
     </tr>
-  )
-}
-
-function FiltroButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        fontFamily: theme.font.family,
-        fontSize: theme.font.size.base,
-        fontWeight: active ? theme.font.weight.semibold : theme.font.weight.medium,
-        padding: '10px 32px',
-        borderRadius: theme.radius.md,
-        border: `2px solid ${active ? theme.colors.primary : theme.colors.border}`,
-        background: active ? theme.colors.primary : theme.colors.surface,
-        color: active ? '#fff' : theme.colors.textSecondary,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-      }}
-    >
-      {label}
-    </button>
   )
 }
 
@@ -266,12 +245,12 @@ export function FacturasPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: '32px' }}>
         <div />
         <div style={{ display: 'flex', gap: '8px' }}>
-          <FiltroButton
+          <PillButton
             label="Clientes"
             active={filtroTitular === 'clientes'}
             onClick={() => setFiltroTitular(prev => prev === 'clientes' ? null : 'clientes')}
           />
-          <FiltroButton
+          <PillButton
             label="Fleteros"
             active={filtroTitular === 'fleteros'}
             onClick={() => setFiltroTitular(prev => prev === 'fleteros' ? null : 'fleteros')}

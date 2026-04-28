@@ -2,26 +2,12 @@
 
 import { useVencimientos } from '../../hooks/useVencimientos'
 import type { VencimientoRow, SemanaGroup } from '../../hooks/useVencimientos'
-import { theme } from '../../theme'
+import { theme, SEMANA_ACTUAL } from '../../theme'
 import MesNavigator from '../../components/MesNavigator'
 import OrdenToggle from '../../components/OrdenToggle'
 
 // ──────────────── Estilos de "semana actual" ────────────────
-
-/**
- * Intensidad del verde aplicado a la semana actual. Subir para destacar más,
- * bajar para que sea más sutil. Las filas usan esta intensidad; el subtotal
- * usa una versión amplificada (proporción fija 2.5x) para mantenerse encima.
- *
- * Rango razonable: 0.03 (apenas visible) — 0.15 (saturado).
- */
-const INTENSIDAD_VERDE_SEMANA_ACTUAL = 0.09
-
-/** Primario del proyecto en RGB, para componer rgba() sin repetir el valor. */
-const PRIMARY_RGB = '26, 122, 74' // theme.colors.primary = #1a7a4a
-
-const BG_FILA_SEMANA_ACTUAL = `rgba(${PRIMARY_RGB}, ${INTENSIDAD_VERDE_SEMANA_ACTUAL})`
-const BG_SUBTOTAL_SEMANA_ACTUAL = `rgba(${PRIMARY_RGB}, ${INTENSIDAD_VERDE_SEMANA_ACTUAL * 3})`
+// Constantes compartidas con ViajesPage. Definidas en theme.ts como SEMANA_ACTUAL.
 
 function formatMonto(monto: number): string {
   return monto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
@@ -67,7 +53,7 @@ function FilaVencimiento({ fila, esActual = false }: { fila: VencimientoRow; esA
   if (esActual) {
     // Sin hover: el fondo ya está pintado y no queremos competencia visual.
     return (
-      <tr style={{ background: BG_FILA_SEMANA_ACTUAL }}>
+      <tr style={{ background: SEMANA_ACTUAL.bgFila }}>
         <td style={{ ...tdStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
           {fila.titular}
         </td>
@@ -110,7 +96,7 @@ function FilaVencimiento({ fila, esActual = false }: { fila: VencimientoRow; esA
 }
 
 function FilaSubtotal({ label, subtotal, esActual }: { label: string; subtotal: number; esActual: boolean }) {
-  const bgColor = esActual ? BG_SUBTOTAL_SEMANA_ACTUAL : '#fef9ec'
+  const bgColor = esActual ? SEMANA_ACTUAL.bgDestacado : '#fef9ec'
   const textColor = esActual ? theme.colors.primary : '#92660a'
 
   return (

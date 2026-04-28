@@ -1,43 +1,20 @@
 // frontend/src/pages/Informes/NuevoInformeModal.tsx
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useClientes } from '../../hooks/useClientes'
 import { useFleteros } from '../../hooks/useFleteros'
 import { useInformeWizard, calcularInforme } from '../../hooks/useInformeWizard'
 import { Modal } from '../../components/Modal'
 import { Button } from '../../components/Button'
+import { PillButton } from '../../components/PillButton'
 import { FormField, inputStyle } from '../../components/FormFields'
-import { InformePreview } from './InformePreview'
+import { useCheckboxMasterRef } from '../../hooks/useCheckboxMasterRef'
 import { theme } from '../../theme'
 import { formatFecha, formatMoneyRound } from '../../utils/format'
 import { getRangoDefault } from '../../utils/fechas'
 import { thStyle, tdBaseStyle } from '../../components/tableStyles'
+import { InformePreview } from './InformePreview'
 import type { TipoInforme, InformeData, CreateInformeDTO, Informe } from '../../types'
-
-// ─── Subcomponentes ───────────────────────────────────────────────────────────
-
-// Botón tipo "chip" para elegir Cliente/Fletero
-function TipoButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        fontFamily: theme.font.family,
-        fontSize: theme.font.size.base,
-        fontWeight: active ? theme.font.weight.semibold : theme.font.weight.medium,
-        padding: '10px 32px',
-        borderRadius: theme.radius.md,
-        border: `2px solid ${active ? theme.colors.primary : theme.colors.border}`,
-        background: active ? theme.colors.primary : theme.colors.surface,
-        color: active ? '#fff' : theme.colors.textSecondary,
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-      }}
-    >
-      {label}
-    </button>
-  )
-}
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
@@ -132,13 +109,7 @@ export function NuevoInformeModal({ open, onClose, onGuardar }: Props) {
     }
   }
 
-  // Ref + efecto para el estado visual "indeterminate" del checkbox master
-  const checkboxMasterRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    if (checkboxMasterRef.current) {
-      checkboxMasterRef.current.indeterminate = algunosSeleccionados
-    }
-  }, [algunosSeleccionados])
+  const checkboxMasterRef = useCheckboxMasterRef(algunosSeleccionados)
 
 
   // Generar el informe y avanzar al paso 3
@@ -226,8 +197,8 @@ export function NuevoInformeModal({ open, onClose, onGuardar }: Props) {
               Tipo de informe
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <TipoButton label="Cliente" active={tipo === 'cliente'} onClick={() => handleCambiarTipo('cliente')} />
-              <TipoButton label="Fletero" active={tipo === 'fletero'} onClick={() => handleCambiarTipo('fletero')} />
+              <PillButton label="Cliente" active={tipo === 'cliente'} onClick={() => handleCambiarTipo('cliente')} />
+              <PillButton label="Fletero" active={tipo === 'fletero'} onClick={() => handleCambiarTipo('fletero')} />
             </div>
           </div>
 
