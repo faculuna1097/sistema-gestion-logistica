@@ -20,8 +20,6 @@ import type { Factura } from '../../types'
 
 type FiltroTitular = 'clientes' | 'fleteros' | null
 
-// Estructura del target del detail modal. Se arma cuando el usuario clickea
-// una fila de Emitidas o Historial; null cuando el modal está cerrado.
 interface DetailTarget {
   preview: FacturaPreviewData
   numero: string | null
@@ -29,6 +27,22 @@ interface DetailTarget {
   vencimiento: string | null
   cuit: string | null
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Calcula cuántos días han pasado desde una fecha YYYY-MM-DD hasta hoy.
+ * Usa T12:00:00 para evitar el corrimiento UTC-3 que podría cruzar de día.
+ */
+function diasDesde(fecha: string): number {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const d = new Date(fecha + 'T12:00:00')
+  d.setHours(0, 0, 0, 0)
+  return Math.floor((hoy.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+const UMBRAL_DIAS_ALERTA = 20
 
 // ─── Subcomponentes ───────────────────────────────────────────────────────────
 
@@ -62,8 +76,6 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
   )
 }
 
-// Wrapper de tabla de FacturasPage: las 3 secciones llevan marginBottom 40px
-// entre ellas. El margen se aplica localmente, no en tableStyles.
 const sectionTableWrapper: React.CSSProperties = {
   ...tableWrapper,
   marginBottom: '40px',
@@ -86,7 +98,7 @@ export function FacturasPage() {
   const { fleteros } = useFleteros()
   const { viajes } = useViajes()
 
-  // Mapas auxiliares (id → nombre para mostrar; id → entidad completa para CUIT/etc.)
+  // Mapas auxiliares
   const clienteMap = useMemo(
     () => Object.fromEntries(clientes.map(c => [c.id, c.nombre])),
     [clientes]
@@ -104,13 +116,19 @@ export function FacturasPage() {
     [fleteros]
   )
 
+  // Mapa de viajes por id — para el cruce de fechas en gruposPendientes.
+  const viajesPorId = useMemo(
+    () => new Map(viajes.map(v => [v.id, v])),
+    [viajes]
+  )
+
   const getNombre = (f: Factura) => {
     if (f.clienteId) return clienteMap[f.clienteId] ?? `Cliente ${f.clienteId}`
     if (f.fleteroId) return fleteroMap[f.fleteroId] ?? `Fletero ${f.fleteroId}`
     return '—'
   }
 
-  // ── Filtrado y agrupamiento ──────────────────────────────────────────────
+  // ── Filtrado ─────────────────────────────────────────────────────────────
   const facturasFiltradas = useMemo(() => {
     return facturas.filter(f => {
       if (f.tipo === 'pago_servicio') return false
@@ -124,6 +142,66 @@ export function FacturasPage() {
   const emitidas   = useMemo(() => facturasFiltradas.filter(f => f.estado === 'facturada'),    [facturasFiltradas])
   const historial  = useMemo(() => facturasFiltradas.filter(f => f.estado === 'pagada'),       [facturasFiltradas])
 
+  // ── Agrupamiento de pendientes por titular ───────────────────────────────
+  //
+  // Clave: `tipo|titularId` — garantiza que cobranza y pago_fletero del mismo
+  // actor aparezcan como filas separadas (son documentos distintos).
+  //
+  // fechaMasAntigua: mínimo de viaje.fecha entre los viajes del grupo.
+  // Si un viajeId no está en viajesPorId (caso defensivo), se ignora para
+  // el cálculo de fecha — el grupo puede quedar sin fecha (null).
+  const gruposPendientes = useMemo(() => {
+    const map = new Map<string, {
+      tipo: Factura['tipo']
+      titularId: number
+      titular: string
+      montoTotal: number
+      facturas: Factura[]
+      fechas: string[]   // fechas de viajes del grupo, para calcular la más antigua
+    }>()
+
+    for (const f of pendientes) {
+      const titularId = f.clienteId ?? f.fleteroId
+      if (titularId === null) continue
+      const key = `${f.tipo}|${titularId}`
+
+      if (!map.has(key)) {
+        map.set(key, {
+          tipo: f.tipo,
+          titularId,
+          titular: getNombre(f),
+          montoTotal: 0,
+          facturas: [],
+          fechas: [],
+        })
+      }
+
+      const grupo = map.get(key)!
+      grupo.montoTotal += f.monto
+      grupo.facturas.push(f)
+
+      // Cruzar con viaje para obtener la fecha
+      if (f.viajeId !== null) {
+        const viaje = viajesPorId.get(f.viajeId)
+        if (viaje) grupo.fechas.push(viaje.fecha)
+      }
+    }
+
+    return Array.from(map.values()).map(g => ({
+      tipo:             g.tipo,
+      titular:          g.titular,
+      cantidadViajes:   g.facturas.length,
+      montoTotal:       g.montoTotal,
+      // El mínimo de strings YYYY-MM-DD funciona con comparación lexicográfica
+      // directa — mismo resultado que comparar Date objects.
+      fechaMasAntigua:  g.fechas.length > 0
+        ? g.fechas.reduce((min, f) => f < min ? f : min)
+        : null,
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendientes, viajesPorId, clienteMap, fleteroMap])
+
+  // ── Agrupamiento de emitidas e historial ─────────────────────────────────
   const gruposEmitidas = useMemo(() => {
     const map = new Map<string, Factura[]>()
     for (const f of emitidas) {
@@ -168,9 +246,8 @@ export function FacturasPage() {
     const tipo = primera.tipo === 'cobranza' ? 'cliente'
               : primera.tipo === 'pago_fletero' ? 'fletero'
               : null
-    if (tipo === null) return  // pago_servicio no se muestra en esta UI
+    if (tipo === null) return
 
-    // Resolver actor (id, nombre) y cuit
     let actorId: number | null = null
     let actorNombre = '—'
     let cuit: string | null = null
@@ -178,17 +255,11 @@ export function FacturasPage() {
     if (tipo === 'cliente' && primera.clienteId !== null) {
       actorId = primera.clienteId
       const cliente = clienteByIdMap[primera.clienteId]
-      if (cliente) {
-        actorNombre = cliente.nombre
-        cuit = cliente.cuit
-      }
+      if (cliente) { actorNombre = cliente.nombre; cuit = cliente.cuit }
     } else if (tipo === 'fletero' && primera.fleteroId !== null) {
       actorId = primera.fleteroId
       const fletero = fleteroByIdMap[primera.fleteroId]
-      if (fletero) {
-        actorNombre = fletero.nombre
-        cuit = fletero.cuit
-      }
+      if (fletero) { actorNombre = fletero.nombre; cuit = fletero.cuit }
     }
 
     if (actorId === null) return
@@ -202,13 +273,7 @@ export function FacturasPage() {
       clienteMap
     )
 
-    setDetailTarget({
-      preview,
-      numero: primera.numero,
-      fechaEmision: primera.fechaEmision,
-      vencimiento: primera.vencimiento,
-      cuit,
-    })
+    setDetailTarget({ preview, numero: primera.numero, fechaEmision: primera.fechaEmision, vencimiento: primera.vencimiento, cuit })
   }
 
   // ── Handlers de revertir / pagar ─────────────────────────────────────────
@@ -275,40 +340,49 @@ export function FacturasPage() {
           <thead>
             <tr style={{ borderBottom: `1px solid ${theme.colors.border}` }}>
               <th style={thStyle}>Tipo</th>
-              <th style={thStyle}>N° Viaje</th>
               <th style={thStyle}>Titular</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Monto</th>
-              <th style={thStyle}>Vencimiento</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Viajes</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Monto total</th>
+              <th style={thStyle}>Desde</th>
             </tr>
           </thead>
           <tbody>
-            {pendientes.length === 0 ? (
+            {gruposPendientes.length === 0 ? (
               <EmptyRow colSpan={5} />
-            ) : pendientes.map((f, i) => (
-              <tr
-                key={f.id}
-                style={{
-                  borderBottom: i < pendientes.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none',
-                  transition: 'background 0.1s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = theme.colors.surfaceHover}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <td style={{ padding: '12px 16px' }}><TipoBadge tipo={f.tipo} /></td>
-                <td style={{ ...tdBaseStyle, fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                  {f.viajeId !== null ? `#${f.viajeId}` : '—'}
-                </td>
-                <td style={{ ...tdBaseStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
-                  {getNombre(f)}
-                </td>
-                <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
-                  {formatMoneyRound(f.monto)}
-                </td>
-                <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap' }}>
-                  {formatFecha(f.vencimiento)}
-                </td>
-              </tr>
-            ))}
+            ) : gruposPendientes.map((grupo, i) => {
+              const dias = grupo.fechaMasAntigua !== null ? diasDesde(grupo.fechaMasAntigua) : null
+              const colorFecha = dias !== null && dias > UMBRAL_DIAS_ALERTA
+                ? theme.colors.danger
+                : theme.colors.textSecondary
+
+              return (
+                <tr
+                  key={`${grupo.tipo}|${grupo.titular}`}
+                  style={{
+                    borderBottom: i < gruposPendientes.length - 1 ? `1px solid ${theme.colors.borderLight}` : 'none',
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = theme.colors.surfaceHover}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <td style={{ padding: '12px 16px' }}>
+                    <TipoBadge tipo={grupo.tipo} />
+                  </td>
+                  <td style={{ ...tdBaseStyle, fontWeight: theme.font.weight.medium, color: theme.colors.textPrimary }}>
+                    {grupo.titular}
+                  </td>
+                  <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {grupo.cantidadViajes}
+                  </td>
+                  <td style={{ ...tdBaseStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: theme.colors.textPrimary }}>
+                    {formatMoneyRound(grupo.montoTotal)}
+                  </td>
+                  <td style={{ ...tdBaseStyle, whiteSpace: 'nowrap', color: colorFecha }}>
+                    {grupo.fechaMasAntigua !== null ? formatFecha(grupo.fechaMasAntigua) : '—'}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -428,7 +502,7 @@ export function FacturasPage() {
         onEmitir={facturarLote}
       />
 
-      {/* Detail modal de factura emitida/pagada */}
+      {/* Detail modal */}
       <FacturaDetailModal
         preview={detailTarget?.preview ?? null}
         numero={detailTarget?.numero ?? null}
