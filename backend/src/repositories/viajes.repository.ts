@@ -3,6 +3,17 @@
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
 import { Viaje, CreateViajeDTO, EstadoFactura, ViajeFilters } from '../types';
+import { buildDynamicUpdate } from '../utils/dynamicUpdate';
+
+const VIAJES_FIELD_MAP: Partial<Record<keyof CreateViajeDTO, string>> = {
+  fecha:        'fecha',
+  clienteId:    'cliente_id',
+  valorCliente: 'valor_cliente',
+  fleteroId:    'fletero_id',
+  costoFletero: 'costo_fletero',
+  numeroRemito: 'numero_remito',
+  destinatario: 'destinatario',
+};
 
 const SELECT = `
   id, fecha, cliente_id, valor_cliente, fletero_id, costo_fletero, created_at,
@@ -114,18 +125,17 @@ export const viajesRepository = {
   async actualizar(id: number, datos: Partial<CreateViajeDTO>, client?: PoolClient): Promise<Viaje | null> {
     console.log(`[viajes] actualizar — request recibido | id: ${id}`);
     const executor = client ?? pool;
+
+    const { setClause, values, nextIndex } = buildDynamicUpdate(datos, VIAJES_FIELD_MAP);
+
+    if (!setClause) {
+      console.log(`[viajes] actualizar — payload vacío, devolviendo registro sin tocar la DB | id: ${id}`);
+      return viajesRepository.getById(id);
+    }
+
     const result = await executor.query(
-      `UPDATE viajes SET
-        fecha          = COALESCE($1, fecha),
-        cliente_id     = COALESCE($2, cliente_id),
-        valor_cliente  = COALESCE($3, valor_cliente),
-        fletero_id     = COALESCE($4, fletero_id),
-        costo_fletero  = COALESCE($5, costo_fletero),
-        numero_remito  = COALESCE($6, numero_remito),
-        destinatario   = COALESCE($7, destinatario)
-      WHERE id = $8
-      RETURNING ${SELECT}`,
-      [datos.fecha, datos.clienteId, datos.valorCliente, datos.fleteroId, datos.costoFletero, datos.numeroRemito, datos.destinatario, id]
+      `UPDATE viajes SET ${setClause} WHERE id = $${nextIndex} RETURNING ${SELECT}`,
+      [...values, id]
     );
     console.log(`[viajes] actualizar — completado | encontrado: ${result.rows.length > 0}`);
     return result.rows[0] ? mapRow(result.rows[0]) : null;

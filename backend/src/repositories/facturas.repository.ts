@@ -3,6 +3,19 @@
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
 import { Factura, CreateFacturaDTO, FacturarDTO } from '../types';
+import { buildDynamicUpdate } from '../utils/dynamicUpdate';
+
+
+const FACTURAS_FIELD_MAP: Partial<Record<keyof CreateFacturaDTO, string>> = {
+  clienteId:    'cliente_id',
+  fleteroId:    'fletero_id',
+  viajeId:      'viaje_id',
+  monto:        'monto',
+  descripcion:  'descripcion',
+  numero:       'numero',
+  fechaEmision: 'fecha_emision',
+  vencimiento:  'vencimiento',
+};
 
 interface FiltrosFactura {
   tipo?: string;
@@ -79,23 +92,6 @@ export async function crear(datos: CreateFacturaDTO): Promise<Factura> {
   return mapRow(result.rows[0]);
 }
 
-export async function actualizar(id: number, datos: Partial<CreateFacturaDTO>): Promise<Factura | null> {
-  console.log(`[facturas] actualizar — request recibido | id: ${id}`);
-  const result = await pool.query(
-    `UPDATE facturas SET
-       monto       = COALESCE($1, monto),
-       descripcion = COALESCE($2, descripcion),
-       numero      = COALESCE($3, numero),
-       vencimiento = COALESCE($4, vencimiento)
-     WHERE id = $5
-     RETURNING ${SELECT}`,
-    [datos.monto ?? null, datos.descripcion ?? null, datos.numero ?? null, datos.vencimiento ?? null, id]
-  );
-  if (result.rows.length === 0) return null;
-  console.log(`[facturas] actualizar — completado | id: ${id}`);
-  return mapRow(result.rows[0]);
-}
-
 export async function facturar(
   id: number,
   datos: { numero: string; fechaEmision: string; vencimiento: string }
@@ -152,36 +148,6 @@ export async function revertir(id: number): Promise<Factura | null> {
   console.log(`[facturas] revertir — completado | id: ${id}`);
   return mapRow(result.rows[0]);
 }
-
-/**
- * Actualiza una factura desde el contexto de una edición de viaje.
- * Solo afecta facturas en estado 'sin_facturar' (validación atómica a nivel DB).
- * Pensado para usarse exclusivamente dentro de una transacción.
- *
- * @returns la factura actualizada, o null si la factura no existe o no estaba en sin_facturar.
- */
-export async function actualizarDesdeViaje(
-  facturaId: number,
-  datos: { monto?: number; clienteId?: number | null; fleteroId?: number | null },
-  client: PoolClient
-): Promise<Factura | null> {
-  console.log(`[facturas] actualizarDesdeViaje — request recibido | id: ${facturaId}`);
-  const result = await client.query(
-    `UPDATE facturas SET
-       monto       = COALESCE($1, monto),
-       cliente_id  = COALESCE($2, cliente_id),
-       fletero_id  = COALESCE($3, fletero_id)
-     WHERE id = $4 AND estado = 'sin_facturar'
-     RETURNING ${SELECT}`,
-    [datos.monto ?? null, datos.clienteId ?? null, datos.fleteroId ?? null, facturaId]
-  );
-  if (result.rows.length === 0) return null;
-  console.log(`[facturas] actualizarDesdeViaje — completado | id: ${facturaId}`);
-  return mapRow(result.rows[0]);
-}
-
-
-
 
 /**
  * Elimina todas las facturas asociadas a un viaje.
@@ -262,4 +228,89 @@ export async function facturarLote(dto: FacturarDTO): Promise<Factura[]> {
   } finally {
     client.release();
   }
+}
+
+// Field map restringido para la cascada desde Viaje.
+// Solo monto, cliente_id, fletero_id — el flujo nunca propaga otros campos.
+type CamposCascadaViaje = Pick<CreateFacturaDTO, 'monto' | 'clienteId' | 'fleteroId'>;
+const FACTURAS_CASCADA_VIAJE_FIELD_MAP: Partial<Record<keyof CamposCascadaViaje, string>> = {
+  monto:     'monto',
+  clienteId: 'cliente_id',
+  fleteroId: 'fletero_id',
+};
+
+/**
+ * UPDATE genérico de factura. Usado por el endpoint PUT /facturas/:id
+ * tras pasar los guards semánticos del service (ej: no permitir borrado
+ * manual de fechaEmision/vencimiento).
+ *
+ * NO incluye filtro de estado: el caller (service) es responsable de
+ * validar las reglas de dominio antes de invocar.
+ */
+export async function actualizar(
+  id: number,
+  datos: Partial<CreateFacturaDTO>,
+  client?: PoolClient
+): Promise<Factura | null> {
+  console.log(`[facturas] actualizar — request recibido | id: ${id}`);
+  const executor = client ?? pool;
+
+  const { setClause, values, nextIndex } = buildDynamicUpdate(datos, FACTURAS_FIELD_MAP);
+
+  if (!setClause) {
+    console.log(`[facturas] actualizar — payload vacío, devolviendo registro sin tocar la DB | id: ${id}`);
+    return getById(id);
+  }
+
+  const result = await executor.query(
+    `UPDATE facturas SET ${setClause} WHERE id = $${nextIndex} RETURNING ${SELECT}`,
+    [...values, id]
+  );
+  if (result.rows.length === 0) return null;
+  console.log(`[facturas] actualizar — completado | id: ${id}`);
+  return mapRow(result.rows[0]);
+}
+
+/**
+ * UPDATE específico para la cascada desde Viaje.
+ *
+ * - WHERE id = $N AND estado = 'sin_facturar' → defensa en profundidad
+ *   contra race conditions a nivel SQL.
+ * - Solo permite los 3 campos que el flujo de cascada necesita propagar
+ *   (monto, clienteId, fleteroId). Otros campos del DTO se ignoran.
+ * - Retorna null si la factura no existe O si cambió de estado entre la
+ *   lectura previa del service y este UPDATE.
+ *
+ * Reemplaza a la función previa `actualizarDesdeViaje`.
+ */
+export async function actualizarSiSinFacturar(
+  facturaId: number,
+  datos: Partial<CamposCascadaViaje>,
+  client: PoolClient
+): Promise<Factura | null> {
+  console.log(`[facturas] actualizarSiSinFacturar — request recibido | id: ${facturaId}`);
+
+  const { setClause, values, nextIndex } = buildDynamicUpdate(datos, FACTURAS_CASCADA_VIAJE_FIELD_MAP);
+
+  if (!setClause) {
+    // Sin campos para actualizar: no hay nada que hacer ni que validar.
+    // Devolvemos la factura tal cual si está en sin_facturar (consistente
+    // con la semántica "el WHERE matchea pero no hay cambios").
+    console.log(`[facturas] actualizarSiSinFacturar — payload vacío | id: ${facturaId}`);
+    const result = await client.query(
+      `SELECT ${SELECT} FROM facturas WHERE id = $1 AND estado = 'sin_facturar'`,
+      [facturaId]
+    );
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  }
+
+  const result = await client.query(
+    `UPDATE facturas SET ${setClause}
+     WHERE id = $${nextIndex} AND estado = 'sin_facturar'
+     RETURNING ${SELECT}`,
+    [...values, facturaId]
+  );
+  if (result.rows.length === 0) return null;
+  console.log(`[facturas] actualizarSiSinFacturar — completado | id: ${facturaId}`);
+  return mapRow(result.rows[0]);
 }

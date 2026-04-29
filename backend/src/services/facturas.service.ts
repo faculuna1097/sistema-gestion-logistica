@@ -33,6 +33,15 @@ export async function crear(datos: CreateFacturaDTO): Promise<Factura> {
 }
 
 export async function actualizar(id: number, datos: Partial<CreateFacturaDTO>): Promise<Factura> {
+  // Guard: fechaEmision y vencimiento solo se borran vía "Revertir factura",
+  // nunca por edición manual. Esto era implícito con COALESCE; ahora es explícito.
+  if (datos.fechaEmision === null) {
+    throw new Error('DTO inválido: fechaEmision no puede borrarse manualmente. Usá "Revertir factura" desde el módulo de Facturas.');
+  }
+  if (datos.vencimiento === null) {
+    throw new Error('DTO inválido: vencimiento no puede borrarse manualmente. Usá "Revertir factura" desde el módulo de Facturas.');
+  }
+
   const factura = await facturasRepository.actualizar(id, datos);
   if (!factura) throw new Error(`Factura ${id} no encontrada`);
   return factura;

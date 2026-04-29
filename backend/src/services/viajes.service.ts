@@ -104,7 +104,7 @@ export const viajesService = {
       await viajesRepository.actualizar(id, datos, client);
 
       if (afectaCobranza) {
-        const updateCobranza = await facturasRepository.actualizarDesdeViaje(
+        const updateCobranza = await facturasRepository.actualizarSiSinFacturar(
           facturaCobranza!.id,
           {
             monto:     cambiaValorCliente ? datos.valorCliente : undefined,
@@ -118,7 +118,7 @@ export const viajesService = {
       }
 
       if (afectaPagoFletero) {
-        const updatePagoFletero = await facturasRepository.actualizarDesdeViaje(
+        const updatePagoFletero = await facturasRepository.actualizarSiSinFacturar(
           facturaPagoFletero!.id,
           {
             monto:     cambiaCostoFletero ? datos.costoFletero : undefined,

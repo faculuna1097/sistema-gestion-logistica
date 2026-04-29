@@ -114,7 +114,16 @@ export async function actualizar(req: Request, res: Response) {
   } catch (err: unknown) {
     console.error('[facturas] Error en actualizar:', err instanceof Error ? err.message : err);
     const message = err instanceof Error ? err.message : 'Error interno del servidor';
-    const status = message.includes('no encontrada') ? 404 : 500;
+
+    let status: number;
+    if (message.startsWith('DTO inválido')) {
+      status = 400;
+    } else if (message.includes('no encontrada')) {
+      status = 404;
+    } else {
+      status = 500;
+    }
+
     res.status(status).json({ error: message });
   }
 }

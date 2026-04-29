@@ -1,6 +1,16 @@
 // src/repositories/fleteros.repository.ts
 import { pool } from '../config/db';
 import { Fletero, CreateFleteroDTO } from '../types';
+import { buildDynamicUpdate } from '../utils/dynamicUpdate';
+
+
+const FLETEROS_FIELD_MAP: Partial<Record<keyof CreateFleteroDTO, string>> = {
+  nombre:   'nombre',
+  email:    'email',
+  telefono: 'telefono',
+  cbu:      'cbu',
+  cuit:     'cuit',
+};
 
 const COLUMNS = `id, nombre, email, telefono, cbu, cuit`;
 
@@ -37,16 +47,17 @@ export async function create(data: CreateFleteroDTO): Promise<Fletero> {
 
 export async function update(id: number, data: Partial<CreateFleteroDTO>): Promise<Fletero | null> {
   console.log(`[fleteros] update — request recibido | id: ${id}`);
+
+  const { setClause, values, nextIndex } = buildDynamicUpdate(data, FLETEROS_FIELD_MAP);
+
+  if (!setClause) {
+    console.log(`[fleteros] update — payload vacío, devolviendo registro sin tocar la DB | id: ${id}`);
+    return getById(id);
+  }
+
   const result = await pool.query<Fletero>(
-    `UPDATE fleteros
-     SET nombre   = COALESCE($1, nombre),
-         email    = COALESCE($2, email),
-         telefono = COALESCE($3, telefono),
-         cbu      = COALESCE($4, cbu),
-         cuit     = COALESCE($5, cuit)
-     WHERE id = $6
-     RETURNING ${COLUMNS}`,
-    [data.nombre ?? null, data.email ?? null, data.telefono ?? null, data.cbu ?? null, data.cuit ?? null, id]
+    `UPDATE fleteros SET ${setClause} WHERE id = $${nextIndex} RETURNING ${COLUMNS}`,
+    [...values, id]
   );
   const fletero = result.rows[0] ?? null;
   console.log(`[fleteros] update — completado | encontrado: ${fletero !== null}`);

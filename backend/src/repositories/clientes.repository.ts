@@ -1,8 +1,18 @@
 // repositories/clientes.repository.ts
 import { pool } from '../config/db';
 import { Cliente, CreateClienteDTO } from '../types';
+import { buildDynamicUpdate } from '../utils/dynamicUpdate';
+
+const CLIENTES_FIELD_MAP: Partial<Record<keyof CreateClienteDTO, string>> = {
+  nombre:   'nombre',
+  email:    'email',
+  telefono: 'telefono',
+  cbu:      'cbu',
+  cuit:     'cuit',
+};
 
 const COLUMNS = `id, nombre, email, telefono, cbu, cuit`;
+
 
 export async function getAll(): Promise<Cliente[]> {
   console.log('[clientes] getAll — request recibido');
@@ -37,16 +47,18 @@ export async function create(data: CreateClienteDTO): Promise<Cliente> {
 
 export async function update(id: number, data: Partial<CreateClienteDTO>): Promise<Cliente | null> {
   console.log(`[clientes] update — request recibido | id: ${id}`);
+
+  const { setClause, values, nextIndex } = buildDynamicUpdate(data, CLIENTES_FIELD_MAP);
+
+  // Payload vacío: nada que actualizar. Devolvemos el registro tal cual.
+  if (!setClause) {
+    console.log(`[clientes] update — payload vacío, devolviendo registro sin tocar la DB | id: ${id}`);
+    return getById(id);
+  }
+
   const result = await pool.query<Cliente>(
-    `UPDATE clientes
-     SET nombre   = COALESCE($1, nombre),
-         email    = COALESCE($2, email),
-         telefono = COALESCE($3, telefono),
-         cbu      = COALESCE($4, cbu),
-         cuit     = COALESCE($5, cuit)
-     WHERE id = $6
-     RETURNING ${COLUMNS}`,
-    [data.nombre ?? null, data.email ?? null, data.telefono ?? null, data.cbu ?? null, data.cuit ?? null, id]
+    `UPDATE clientes SET ${setClause} WHERE id = $${nextIndex} RETURNING ${COLUMNS}`,
+    [...values, id]
   );
   const cliente = result.rows[0] ?? null;
   console.log(`[clientes] update — completado | encontrado: ${cliente !== null}`);
