@@ -164,8 +164,8 @@ export const viajesController = {
       const id = parseIdOr400(req, res);
       if (id === null) return;
 
-      const viaje = await viajesService.eliminar(id);
-      if (!viaje) {
+      const eliminado = await viajesService.eliminar(id);
+      if (!eliminado) {
         res.status(404).json({ error: 'Viaje no encontrado' });
         return;
       }

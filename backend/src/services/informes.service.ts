@@ -181,9 +181,9 @@ export async function crear(dto: CreateInformeDTO): Promise<Informe> {
   }
 }
 
-export async function eliminar(id: number): Promise<Informe | null> {
+export async function eliminar(id: number): Promise<boolean> {
   console.log(`[informes] service.eliminar — request recibido | id: ${id}`);
   const eliminado = await informesRepository.eliminar(id);
-  console.log(`[informes] service.eliminar — completado | encontrado: ${eliminado !== null}`);
+  console.log(`[informes] service.eliminar — completado | encontrado: ${eliminado}`);
   return eliminado;
 }

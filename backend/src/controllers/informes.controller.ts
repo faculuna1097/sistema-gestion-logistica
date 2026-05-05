@@ -154,8 +154,8 @@ export const informesController = {
       const id = parseIdOr400(req, res);
       if (id === null) return;
 
-      const informe = await informesService.eliminar(id);
-      if (!informe) {
+      const eliminado = await informesService.eliminar(id);
+      if (!eliminado) {
         res.status(404).json({ error: 'Informe no encontrado' });
         return;
       }

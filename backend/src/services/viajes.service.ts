@@ -1,4 +1,4 @@
-// backend/services/viajes.service.ts
+// backend/src/services/viajes.service.ts
 
 import { viajesRepository } from '../repositories/viajes.repository';
 import * as facturasRepository from '../repositories/facturas.repository';
@@ -145,14 +145,14 @@ export const viajesService = {
     return viajesRepository.getById(id);
   },
 
-  async eliminar(id: number): Promise<Viaje | null> {
+  async eliminar(id: number): Promise<boolean> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       await facturasRepository.eliminarPorViajeId(id, client);
-      const viaje = await viajesRepository.eliminar(id, client);
+      const eliminado = await viajesRepository.eliminar(id, client);
       await client.query('COMMIT');
-      return viaje;
+      return eliminado;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

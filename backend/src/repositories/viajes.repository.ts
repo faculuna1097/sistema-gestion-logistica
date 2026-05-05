@@ -141,15 +141,16 @@ export const viajesRepository = {
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   },
 
-  async eliminar(id: number, client?: PoolClient): Promise<Viaje | null> {
+  async eliminar(id: number, client?: PoolClient): Promise<boolean> {
     console.log(`[viajes] eliminar — request recibido | id: ${id}`);
     const executor = client ?? pool;
     const result = await executor.query(
-      `DELETE FROM viajes WHERE id = $1 RETURNING ${SELECT}`,
+      `DELETE FROM viajes WHERE id = $1`,
       [id]
     );
-    console.log(`[viajes] eliminar — completado | encontrado: ${result.rows.length > 0}`);
-    return result.rows[0] ? mapRow(result.rows[0]) : null;
+    const eliminado = (result.rowCount ?? 0) > 0;
+    console.log(`[viajes] eliminar — completado | encontrado: ${eliminado}`);
+    return eliminado;
   },
 
   /**

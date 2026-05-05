@@ -149,18 +149,10 @@ export async function vincularViajes(
   console.log(`[informes] vincularViajes — completado | informeId: ${informeId}, vinculados: ${viajeIds.length}`);
 }
 
-export async function eliminar(id: number): Promise<Informe | null> {
+export async function eliminar(id: number): Promise<boolean> {
   console.log(`[informes] eliminar — request recibido | id: ${id}`);
-
-  // Leemos primero (con el array de viajes) para poder devolverlo.
-  // El DELETE después usa ON DELETE CASCADE para limpiar informes_viajes.
-  const existente = await getById(id);
-  if (!existente) {
-    console.log(`[informes] eliminar — completado | encontrado: false`);
-    return null;
-  }
-
-  await pool.query(`DELETE FROM informes WHERE id = $1`, [id]);
-  console.log(`[informes] eliminar — completado | id: ${id}`);
-  return existente;
+  const result = await pool.query(`DELETE FROM informes WHERE id = $1`, [id]);
+  const eliminado = (result.rowCount ?? 0) > 0;
+  console.log(`[informes] eliminar — completado | encontrado: ${eliminado}`);
+  return eliminado;
 }
