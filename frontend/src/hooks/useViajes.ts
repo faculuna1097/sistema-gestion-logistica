@@ -42,7 +42,7 @@ export function useViajes() {
 
 // ELIMINAR VIAJE
   const eliminarViaje = async (id: number) => {
-    await api.delete(`/viajes/${id}`)
+    await api.delete<void>(`/viajes/${id}`)
     setViajes(prev => prev.filter(v => v.id !== id))
   }
 

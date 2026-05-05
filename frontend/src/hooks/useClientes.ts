@@ -37,7 +37,7 @@ export function useClientes() {
   }
 
   const eliminarCliente = async (id: number) => {
-    await api.delete(`/clientes/${id}`)
+    await api.delete<void>(`/clientes/${id}`)
     setClientes(prev => prev.filter(c => c.id !== id))
   }
 

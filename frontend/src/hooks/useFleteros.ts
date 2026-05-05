@@ -37,7 +37,7 @@ export function useFleteros() {
   }
 
   const eliminarFletero = async (id: number) => {
-    await api.delete(`/fleteros/${id}`)
+    await api.delete<void>(`/fleteros/${id}`)
     setFleteros(prev => prev.filter(f => f.id !== id))
   }
 
