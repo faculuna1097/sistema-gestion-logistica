@@ -15,6 +15,7 @@ import { NuevaFacturaModal } from './NuevaFacturaModal'
 import { FacturaDetailModal } from './FacturaDetailModal'
 import { theme } from '../../theme'
 import { formatFecha, formatMoneyRound } from '../../utils/format'
+import { getNombreTitular, agruparFacturasPorNumero } from '../../utils/facturas'
 import { thStyle, tdBaseStyle, tableWrapper } from '../../components/tableStyles'
 import type { Factura } from '../../types'
 
@@ -122,12 +123,6 @@ export function FacturasPage() {
     [viajes]
   )
 
-  const getNombre = (f: Factura) => {
-    if (f.clienteId) return clienteMap[f.clienteId] ?? `Cliente ${f.clienteId}`
-    if (f.fleteroId) return fleteroMap[f.fleteroId] ?? `Fletero ${f.fleteroId}`
-    return '—'
-  }
-
   // ── Filtrado ─────────────────────────────────────────────────────────────
   const facturasFiltradas = useMemo(() => {
     return facturas.filter(f => {
@@ -169,7 +164,7 @@ export function FacturasPage() {
         map.set(key, {
           tipo: f.tipo,
           titularId,
-          titular: getNombre(f),
+          titular: getNombreTitular(f, clienteMap, fleteroMap),
           montoTotal: 0,
           facturas: [],
           fechas: [],
@@ -198,46 +193,18 @@ export function FacturasPage() {
         ? g.fechas.reduce((min, f) => f < min ? f : min)
         : null,
     }))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendientes, viajesPorId, clienteMap, fleteroMap])
 
   // ── Agrupamiento de emitidas e historial ─────────────────────────────────
-  const gruposEmitidas = useMemo(() => {
-    const map = new Map<string, Factura[]>()
-    for (const f of emitidas) {
-      const key = f.numero ?? `__${f.id}`
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(f)
-    }
-    return Array.from(map.entries()).map(([numero, items]) => ({
-      numero,
-      items,
-      titular: getNombre(items[0]),
-      tipo: items[0].tipo,
-      montoTotal: items.reduce((sum, f) => sum + f.monto, 0),
-      vencimiento: items[0].vencimiento,
-      count: items.length,
-    }))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emitidas, clienteMap, fleteroMap])
+  const gruposEmitidas = useMemo(
+    () => agruparFacturasPorNumero(emitidas, f => getNombreTitular(f, clienteMap, fleteroMap)),
+    [emitidas, clienteMap, fleteroMap]
+  )
 
-  const gruposHistorial = useMemo(() => {
-    const map = new Map<string, Factura[]>()
-    for (const f of historial) {
-      const key = f.numero ?? `__${f.id}`
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(f)
-    }
-    return Array.from(map.entries()).map(([numero, items]) => ({
-      numero,
-      items,
-      titular: getNombre(items[0]),
-      tipo: items[0].tipo,
-      montoTotal: items.reduce((sum, f) => sum + f.monto, 0),
-      vencimiento: items[0].vencimiento,
-    }))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historial, clienteMap, fleteroMap])
+  const gruposHistorial = useMemo(
+    () => agruparFacturasPorNumero(historial, f => getNombreTitular(f, clienteMap, fleteroMap)),
+    [historial, clienteMap, fleteroMap]
+  )
 
   // ── Handlers de detail ───────────────────────────────────────────────────
   const handleAbrirDetail = (items: Factura[]) => {
