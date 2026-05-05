@@ -17,7 +17,7 @@ const COLUMNS = `id, nombre, email, telefono, cbu, cuit`;
 export async function getAll(): Promise<Cliente[]> {
   console.log('[clientes] getAll — request recibido');
   const result = await pool.query<Cliente>(
-    `SELECT ${COLUMNS} FROM clientes ORDER BY nombre ASC`
+    `SELECT ${COLUMNS} FROM clientes ORDER BY nombre ASC, id ASC`
   );
   console.log(`[clientes] getAll — completado | cantidad: ${result.rows.length}`);
   return result.rows;

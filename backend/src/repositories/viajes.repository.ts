@@ -1,4 +1,4 @@
-// src/repositories/viajes.repository.ts
+// backend/src/repositories/viajes.repository.ts
 
 import { pool } from '../config/db';
 import { PoolClient } from 'pg';
@@ -41,15 +41,15 @@ function mapRow(row: Record<string, unknown>): Viaje {
     fleteroId:                   Number(row.fletero_id),
     costoFletero:                Number(row.costo_fletero),
     createdAt:                   row.created_at as string,
-    numeroRemito:                (row.numero_remito  as string) ?? null,
-    destinatario:                (row.destinatario   as string) ?? null,
-    numeroFacturaCobranza:       (row.numero_factura_cobranza    as string)  ?? null,
-    estadoFacturaCobranza:       (row.estado_factura_cobranza    as EstadoFactura) ?? null,
+    numeroRemito:                row.numero_remito as string | null,
+    destinatario:                row.destinatario as string | null,
+    numeroFacturaCobranza:       row.numero_factura_cobranza as string | null,
+    estadoFacturaCobranza:       row.estado_factura_cobranza as EstadoFactura | null,
     vencimientoCobranza:         row.vencimiento_cobranza
                                    ? new Date(row.vencimiento_cobranza as string).toISOString().slice(0, 10)
                                    : null,
-    numeroFacturaPagoFletero:    (row.numero_factura_pago_fletero as string)  ?? null,
-    estadoFacturaPagoFletero:    (row.estado_factura_pago_fletero as EstadoFactura) ?? null,
+    numeroFacturaPagoFletero:    row.numero_factura_pago_fletero as string | null,
+    estadoFacturaPagoFletero:    row.estado_factura_pago_fletero as EstadoFactura | null,
     vencimientoPagoFletero:      row.vencimiento_pago_fletero
                                    ? new Date(row.vencimiento_pago_fletero as string).toISOString().slice(0, 10)
                                    : null,

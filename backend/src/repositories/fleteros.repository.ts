@@ -17,7 +17,7 @@ const COLUMNS = `id, nombre, email, telefono, cbu, cuit`;
 export async function getAll(): Promise<Fletero[]> {
   console.log('[fleteros] getAll — request recibido');
   const result = await pool.query<Fletero>(
-    `SELECT ${COLUMNS} FROM fleteros ORDER BY nombre ASC`
+    `SELECT ${COLUMNS} FROM fleteros ORDER BY nombre ASC, id ASC`
   );
   console.log(`[fleteros] getAll — completado | cantidad: ${result.rows.length}`);
   return result.rows;
